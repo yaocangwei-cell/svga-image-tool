@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>SVGA 图片替换工具 (最终稳定修复版 V7 - 尺寸与背景)</title>
+    
+    <script src="./protobuf.min.js"></script>
+    <script src="./pako.min.js"></script>
+    <script src="./svga.min.js"></script> 
+    
+    <style>
+        /* --- 整体布局和基础样式 --- */
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f0f2f5; color: #333; }
+        .main-area { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .status-bar { margin-bottom: 20px; padding: 15px; border-radius: 8px; font-weight: 600; display: none; }
+        .status-error { background: #fff1f0; border: 1px solid #ffa39e; color: #cf1322; }
+        .status-success { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+        .status-loading { background: #e6f7ff; border: 1px solid #91d5ff; color: #1890ff; }
+        
+        /* --- 播放器区域优化 --- */
+        #player-wrapper { 
+            position: relative;
+            /* V7 修正: 移除固定高度，允许内容撑开 */
+            height: auto; 
+            min-height: 200px; /* 确保未加载文件时有最小高度 */
+            width: 100%;
+            background-color: #fafafa; /* 外部区域背景色 */
+            border: 2px dashed #e8e8e8; 
+            border-radius: 8px; 
+            margin-bottom: 20px;
+            overflow: hidden; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            transition: background-color 0.3s; 
+        }
+        
+        /* 拖拽提示样式 (初始状态) */
+        #drag-overlay {
+            /* ... (保持不变) ... */
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.9);
+            z-index: 20; 
+            pointer-events: none;
+            color: #ccc;
+        }
+        #drag-overlay.hidden { display: none; }
+        #drag-overlay.drag-over { 
+            background: rgba(230, 247, 255, 0.9); 
+            border: 4px solid #1890ff; 
+        }
+
+        /* SVGA Player 实际画布容器 */
+        #playerCanvas { 
+            /* V7 修正: 初始尺寸为 0，防止撑开父元素 */
+            width: 0px; 
+            height: 0px; 
+            position: relative;
+            /* V7 修正: 将背景色设置到这里，让它只填充动画实际尺寸 */
+            transition: background-color 0.3s; 
+        }
+        
+        /* 强制让 Canvas 元素充满容器，确保渲染器能找到正确的尺寸 */
+        #playerCanvas canvas {
+            width: 100% !important;
+            height: 100% !important;
+            display: block; /* 移除 Canvas 默认的行内元素间隙 */
+        }
+        
+        #playerStatus {
+            position: absolute;
+            top: 10px; left: 10px; font-size: 12px; color: #999; z-index: 10;
+        }
+        #fileDimensions { font-size: 14px; font-weight: normal; color: #999; }
+
+        /* --- 列表样式 (保持不变) --- */
+        .color-swatch {
+            width: 30px; height: 30px; border-radius: 4px; cursor: pointer; 
+            transition: transform 0.1s, box-shadow 0.1s; display: inline-block;
+        }
+        .color-swatch:hover { transform: scale(1.1); box-shadow: 0 0 5px rgba(0,0,0,0.3); }
+        .color-swatch[data-color="#FFFFFF"] { border: 1px solid #ccc; } 
+
+        .assets-list { border: 1px solid #eee; border-radius: 8px; }
+        .asset-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #f0f0f0; background: #fff; position: relative; }
+        .asset-preview { width: 50px; height: 50px; object-fit: contain; background: #eee; border-radius: 4px; margin-right: 15px; border: 1px solid #ddd; }
+        .asset-info { flex: 1; }
+        .asset-key { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+        .asset-meta { font-size: 12px; color: #999; }
+        
+        .btn-upload-small { padding: 6px 12px; background: #faad14; color: white; font-size: 12px; border-radius: 4px; cursor: pointer; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn-primary { background: #1890ff; color: white; }
+        .btn-download { background: #52c41a; color: white; }
+        input[type=file] { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="main-area">
+    <h2 style="margin-top:0">SVGA 图片替换工具 (最终稳定修复版 V7)</h2>
+    
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="btn-group">
+        <label class="btn btn-primary">
+            📂 加载 SVGA 文件
+            <input type="file" id="svgaInput" accept=".svga">
+        </label>
+        <button id="downloadBtn" class="btn btn-download" disabled>💾 导出新文件</button>
+    </div>
+
+    <h3>动态预览 (文件尺寸: <span id="fileDimensions">未加载</span>)</h3>
+    <div id="player-wrapper">
+        <div id="drag-overlay">
+            <svg fill="currentColor" width="48" height="48" viewBox="0 0 24 24" style="margin-bottom: 10px;"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM10.71 14.29l1.59 1.59V12h1.4v3.88l1.59-1.59.99.99-3 3-3-3 .99-.99z"/></svg>
+            <span style="font-size: 16px;">体验预览 SVGA 动画，请将文件拖拽到此区域</span>
+            <div style="font-size:12px; margin-top:10px;">请打开控制台 (F12) 查看调试信息</div>
+        </div>
+
+        <div id="playerCanvas">
+             </div>
+        <span id="playerStatus" style="color:#ccc">等待文件加载...</span>
+    </div>
+    
+    <div id="color-selector" style="display:flex; justify-content:center; gap:10px; margin-bottom: 20px;">
+        <span class="color-swatch" data-color="#000000" style="background:#000000" title="黑色"></span>
+        <span class="color-swatch" data-color="#FFFFFF" style="background:#FFFFFF" title="白色"></span>
+        <span class="color-swatch" data-color="#3D82FF" style="background:#3D82FF" title="蓝色"></span>
+        <span class="color-swatch" data-color="#55C464" style="background:#55C464" title="绿色"></span>
+        <span class="color-swatch" data-color="#FFDD33" style="background:#FFDD33" title="黄色"></span>
+        <span class="color-swatch" data-color="#FF4040" style="background:#FF4040" title="红色"></span>
+    </div>
+
+    <h3>图片素材列表 (含尺寸、下载、替换)</h3>
+    <div class="assets-list" id="assetsList">
+        <div style="padding:20px; text-align:center; color:#999;">等待文件加载...</div>
+    </div>
+</div>
+
+<script>
+    // --- Protobuf 定义 (保持不变) ---
+    const officialProtoDefinition = `
+    syntax = "proto3";
+    package com.opensource.svga;
+    message MovieParams { float viewBoxWidth = 1; float viewBoxHeight = 2; int32 fps = 3; int32 frames = 4; }
+    message Rect { float x = 1; float y = 2; float width = 3; float height = 4; }
+    message Transform { float a = 1; float b = 2; float c = 3; float d = 4; float tx = 5; float ty = 6; }
+    message Point { float x = 1; float y = 2; }
+    message Layout { float x = 1; float y = 2; float width = 3; float height = 4; }
+    message ShapeEntity { enum ShapeType { SHAPE = 0; RECT = 1; ROUNDED_RECT = 2; ELLIPSE = 3; POLYGON = 4; TEXT = 5; } ShapeType type = 1; string args = 2; ShapeStyle styles = 3; Transform transform = 4; }
+    message ShapeStyle { float fillR = 1; float fillG = 2; float fillB = 3; float fillA = 4; float strokeR = 5; float strokeG = 6; float strokeB = 7; float strokeA = 8; float strokeWidth = 9; float miterLimit = 10; repeated float lineDash = 11; int32 lineCap = 12; int32 lineJoin = 13; }
+    message FrameEntity { float alpha = 1; Layout layout = 2; Transform transform = 3; string clipPath = 4; repeated ShapeEntity shapes = 5; repeated string events = 6; repeated string filters = 7; }
+    message SpriteEntity { string imageKey = 1; repeated FrameEntity frames = 2; string zPosition = 3; repeated string events = 4; }
+    message AudioEntity { string audioKey = 1; int32 startFrame = 2; int32 endFrame = 3; int32 startTime = 4; int32 totalTime = 5; }
+    message MovieEntity { string version = 1; MovieParams params = 2; map<string, bytes> images = 3; repeated SpriteEntity sprites = 4; repeated AudioEntity audios = 5; }
+    `;
+
+    let MovieEntity = null;
+    let currentMovieData = null; 
+    let player = null; 
+    let parser = null;
+    const objectUrls = {};
+    let currentBgColor = "#FFFFFF"; // V7 修正: 记录当前背景色
+
+    function setStatus(type, msg) {
+        console.log(`[Status] ${type}: ${msg}`);
+        const el = document.getElementById('statusBar');
+        el.style.display = 'block';
+        el.className = `status-bar status-${type}`;
+        el.innerHTML = msg;
+    }
+
+    // --- 核心初始化逻辑 ---
+    window.onload = () => {
+        console.log("初始化开始...");
+        
+        if (typeof protobuf === 'undefined' || typeof pako === 'undefined' || typeof SVGA === 'undefined') {
+            const missing = [];
+            if (typeof protobuf === 'undefined') missing.push('protobuf.min.js');
+            if (typeof pako === 'undefined') missing.push('pako.min.js');
+            if (typeof SVGA === 'undefined') missing.push('svga.min.js');
+            
+            setStatus('error', `❌ 启动失败：缺少以下核心文件：${missing.join(', ')}。请确保文件已下载并放在 index.html 同级目录下。`);
+            return;
+        }
+        
+        try {
+            const parsed = protobuf.parse(officialProtoDefinition, { keepCase: true });
+            MovieEntity = parsed.root.lookupType("com.opensource.svga.MovieEntity");
+            parser = new SVGA.Parser();
+            console.log("SVGA.Parser 初始化成功。");
+
+            // 绑定颜色选择器事件
+            document.querySelectorAll('.color-swatch').forEach(swatch => {
+                swatch.addEventListener('click', (e) => {
+                    const color = e.target.getAttribute('data-color');
+                    currentBgColor = color; // V7 修正: 更新全局背景色变量
+                    // V7 修正: 将背景色应用到实际画布容器
+                    document.getElementById('playerCanvas').style.backgroundColor = color; 
+                    setStatus('success', `✅ 背景色已设置为 ${color}。`);
+                });
+            });
+
+            // 初始化时设置默认背景色
+            document.getElementById('playerCanvas').style.backgroundColor = currentBgColor;
+
+            // 绑定文件事件 (拖拽和文件选择)
+            const dropArea = document.getElementById('player-wrapper');
+            dropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                document.getElementById('drag-overlay').classList.add('drag-over');
+            });
+            dropArea.addEventListener('dragleave', (e) => {
+                document.getElementById('drag-overlay').classList.remove('drag-over');
+            });
+            dropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                document.getElementById('drag-overlay').classList.remove('drag-over');
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    const extension = file.name.split('.').pop().toLowerCase();
+                    if (extension === 'svga') { 
+                        loadFile(file);
+                    } else {
+                        setStatus('error', '❌ 文件格式错误，请拖入 .svga 文件。');
+                    }
+                }
+            });
+
+            document.getElementById('svgaInput').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const extension = file.name.split('.').pop().toLowerCase();
+                    if (extension === 'svga') {
+                        loadFile(file);
+                    } else {
+                        setStatus('error', '❌ 文件格式错误，请选择 .svga 文件。');
+                    }
+                }
+            });
+
+
+            setStatus('success', '✅ 核心组件加载成功，等待文件导入。');
+        } catch (e) {
+            setStatus('error', '❌ 初始化失败 (Protobuf/SVGA)：' + e.message);
+            console.error("初始化错误:", e);
+        }
+    };
+    
+    // --- 文件加载与解析逻辑 ---
+    async function loadFile(file) {
+        setStatus('loading', `⏳ 正在加载并解析文件：${file.name}...`);
+        document.getElementById('downloadBtn').disabled = true;
+        document.getElementById('assetsList').innerHTML = '<div style="padding:20px; text-align:center; color:#999;">正在解析文件...</div>';
+        document.getElementById('playerStatus').textContent = '加载中...';
+        document.getElementById('fileDimensions').textContent = '计算中...';
+        
+        document.getElementById('drag-overlay').classList.add('hidden');
+        
+        // 1. 清理旧播放器的DOM，确保容器干净
+        document.getElementById('playerCanvas').innerHTML = ''; 
+        // V7 修正: 清理尺寸，等待新文件尺寸
+        document.getElementById('playerCanvas').style.width = '0px'; 
+        document.getElementById('playerCanvas').style.height = '0px'; 
+        
+        // 2. 销毁旧播放器实例
+        if (player) {
+            player.stopAnimation();
+            player.clear();
+        }
+
+        // 3. 重新创建播放器实例，绑定到干净的DOM容器上
+        try {
+            // V7 修正: 重新创建播放器时，使用 Canvas 渲染器
+            player = new SVGA.Player('#playerCanvas', { renderer: 'canvas' }); 
+            // V7 修正: 设置 contentMode 为 Fill 或 AspectFill，以实现不缩放的效果
+            player.setContentMode("Fill"); // Fill 表示不保持比例，直接填充容器，由于容器尺寸等于动画尺寸，所以可以实现1:1显示
+            player.loops = 0; 
+            console.log("SVGA.Player 实例已重新创建。");
+        } catch(e) {
+            setStatus('error', '❌ SVGA Player 重新初始化失败：' + e.message);
+            console.error("SVGA Player 重新初始化错误:", e);
+            document.getElementById('drag-overlay').classList.remove('hidden'); 
+            return;
+        }
+
+
+        try {
+            const buffer = await file.arrayBuffer();
+            let inflatedData;
+            
+            try {
+                inflatedData = pako.inflate(new Uint8Array(buffer));
+            } catch (err) {
+                inflatedData = new Uint8Array(buffer);
+            }
+
+            currentMovieData = MovieEntity.decode(inflatedData);
+            
+            setStatus('success', `✅ 文件解析成功！包含 ${Object.keys(currentMovieData.images || {}).length} 张图片。`);
+
+            renderAssetsList(currentMovieData.images);
+            tryDynamicPreview(); 
+
+            document.getElementById('downloadBtn').disabled = false;
+
+        } catch (err) {
+            setStatus('error', `❌ 核心解码失败。请确认文件是否为标准 SVGA 格式。技术细节: ${err.message}`);
+            console.error("Protobuf 解码或文件读取错误:", err);
+            document.getElementById('playerStatus').textContent = '文件加载失败';
+            document.getElementById('assetsList').innerHTML = '<div style="padding:20px; text-align:center; color:#cf1322;">文件解析失败，请检查控制台错误信息。</div>';
+            document.getElementById('drag-overlay').classList.remove('hidden'); 
+        }
+    }
+
+
+    // --- 动态预览 ---
+    function tryDynamicPreview() {
+        if (!currentMovieData || !player) return; 
+        
+        player.stopAnimation();
+        player.clear(); 
+        
+        const { viewBoxWidth, viewBoxHeight } = currentMovieData.params;
+        
+        // V7 关键修正: 动态设置播放器容器的尺寸
+        const playerCanvas = document.getElementById('playerCanvas');
+        playerCanvas.style.width = `${viewBoxWidth}px`;
+        playerCanvas.style.height = `${viewBoxHeight}px`;
+
+        document.getElementById('fileDimensions').textContent = `${viewBoxWidth} x ${viewBoxHeight} px`;
+
+        try {
+            const blob = packSVGA();
+            const url = URL.createObjectURL(blob);
+            
+            document.getElementById('playerStatus').textContent = '加载预览中...';
+            
+            parser.load(url, (videoItem) => {
+                if (player) {
+                    player.stopAnimation(); 
+                    player.clear();
+                    
+                    // 确保 Canvas 元素已经创建并且尺寸正确
+                    player.setVideoItem(videoItem);
+                    player.startAnimation(); 
+                    document.getElementById('playerStatus').textContent = '动态预览成功';
+                }
+                URL.revokeObjectURL(url); 
+            }, (err) => {
+                document.getElementById('playerStatus').textContent = '动态预览失败 (SVGA Player 加载错误)';
+                console.error("SVGA Player 加载失败，详细信息:", err);
+                URL.revokeObjectURL(url);
+            });
+        } catch (e) {
+            document.getElementById('playerStatus').textContent = '预览生成错误';
+            console.error("预览生成或打包错误:", e);
+        }
+    }
+
+
+    // --- 辅助函数 (保持不变) ---
+    function packSVGA() {
+        const message = MovieEntity.create(currentMovieData);
+        const encodedBuffer = MovieEntity.encode(message).finish();
+        const deflatedData = pako.deflate(encodedBuffer);
+        return new Blob([deflatedData], { type: "application/octet-stream" });
+    }
+
+    async function getImageDimensions(imgBytes) {
+        // ... (保持不变) ...
+        return new Promise(resolve => {
+            if (!imgBytes || imgBytes.length === 0) return resolve({ width: '0', height: '0' });
+            
+            const blob = new Blob([imgBytes], { type: 'image/png' }); 
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                resolve({ width: img.width, height: img.height });
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                resolve({ width: '?', height: '?' });
+            };
+            img.src = url;
+        });
+    }
+    
+    window.downloadAsset = (event, key) => {
+        // ... (保持不变) ...
+        event.preventDefault(); 
+        const imgBytes = currentMovieData.images[key];
+        if (!imgBytes) return;
+
+        const blob = new Blob([imgBytes], { type: 'application/octet-stream' }); 
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${key}.png`; 
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url); 
+    };
+
+    function renderAssetsList(imagesMap) {
+        // ... (保持不变) ...
+        const container = document.getElementById('assetsList');
+        container.innerHTML = '';
+        if (!imagesMap || Object.keys(imagesMap).length === 0) {
+            container.innerHTML = '<div style="padding:20px; text-align:center;">此文件没有图片资源</div>';
+            return;
+        }
+        
+        Object.keys(imagesMap).sort().forEach(key => {
+            const imgBytes = imagesMap[key];
+            const blob = new Blob([imgBytes], { type: 'image/png' });
+            
+            const imgUrl = URL.createObjectURL(blob);
+            objectUrls[key] = imgUrl; 
+            
+            const div = document.createElement('div');
+            div.className = 'asset-item';
+            div.innerHTML = `
+                <img src="${imgUrl}" class="asset-preview" data-key="${key}">
+                <div class="asset-info">
+                    <div class="asset-key">${key}</div>
+                    <div class="asset-meta">${(imgBytes.length / 1024).toFixed(1)} KB | 尺寸: 计算中...</div>
+                </div>
+                <a href="#" onclick="downloadAsset(event, '${key}')" class="download-icon" title="下载素材">
+                    <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                </a>
+                <label class="btn-upload-small">
+                    替换图片
+                    <input type="file" accept="image/*" onchange="handleReplace('${key}', this)">
+                </label>
+            `;
+            container.appendChild(div);
+
+            getImageDimensions(imgBytes).then(dim => {
+                const metaDiv = div.querySelector('.asset-meta');
+                metaDiv.textContent = 
+                    `${(imgBytes.length / 1024).toFixed(1)} KB | 尺寸: ${dim.width}x${dim.height} px`;
+            });
+        });
+    }
+
+    window.handleReplace = async (key, inputElement) => {
+        const file = inputElement.files[0];
+        if (!file) return;
+
+        const buffer = await file.arrayBuffer();
+        const newBytes = new Uint8Array(buffer);
+        
+        currentMovieData.images[key] = newBytes;
+
+        const blob = new Blob([newBytes], { type: 'image/png' });
+        
+        if (objectUrls[key]) {
+            URL.revokeObjectURL(objectUrls[key]); 
+        }
+        const newUrl = URL.createObjectURL(blob);
+        objectUrls[key] = newUrl; 
+
+        const itemElement = inputElement.parentElement.parentElement;
+        itemElement.querySelector('.asset-preview').src = newUrl;
+        
+        const metaDiv = itemElement.querySelector('.asset-meta');
+        metaDiv.textContent = `${(newBytes.length / 1024).toFixed(1)} KB | 尺寸: 计算中... (已更新)`;
+
+        getImageDimensions(newBytes).then(dim => {
+            metaDiv.textContent = 
+                `${(newBytes.length / 1024).toFixed(1)} KB | 尺寸: ${dim.width}x${dim.height} px (已更新)`;
+        });
+
+        setStatus('success', `✅ 图片 ${key} 替换成功！正在更新动态预览...`);
+        tryDynamicPreview(); 
+    };
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+        try {
+            const blob = packSVGA();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `fixed_${new Date().getTime()}.svga`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url); 
+            setStatus('success', '✅ 文件导出成功！');
+        } catch(e) {
+            setStatus('error', '❌ 文件导出失败：' + e.message);
+            console.error("导出失败:", e);
+        }
+    });
+
+</script>
+
+</body>
+</html>
