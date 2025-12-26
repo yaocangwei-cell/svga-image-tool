@@ -482,11 +482,20 @@
                 <b>拖入全选的图片 (Select All & Drag)</b><br>
                 <span style="font-size:14px; color:#888;">或者 <b>点击此处</b> 选择文件夹</span>
             </div>
-            <div class="batch-hint">
-                <b>操作指南:</b><br>
-                1. 优先尝试: 在文件夹内 Ctrl+A 全选图片，拖入此处。<br>
-                2. 如果想选文件夹: 直接点击这个虚线框，在弹窗里选文件夹。<br>
-                <b>逻辑:</b> 按文件名顺序与 SVGA 帧顺序对位替换。
+            
+            <div id="sortOptionsWrapper" style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 6px; display: inline-block; text-align: left; cursor: default;">
+                <div style="color: #00ff80; font-size: 12px; margin-bottom: 5px; font-weight:bold;">匹配模式 (Sorting Logic):</div>
+                <label style="margin-right: 15px; cursor: pointer; color: #e0e0e0; font-size: 13px; display:inline-block;">
+                    <input type="radio" name="sortMode" value="name" checked> 按文件名 (默认)
+                </label>
+                <label style="cursor: pointer; color: #e0e0e0; font-size: 13px; display:inline-block;">
+                    <input type="radio" name="sortMode" value="timeline"> 按播放出现顺序 🔥
+                </label>
+            </div>
+
+            <div class="batch-hint" style="font-size:12px; color:#666; margin-top:10px;">
+                <b>操作:</b> 优先尝试 Ctrl+A 全选图片拖入。<br>
+                <b>逻辑:</b> 默认按文件名排序。如遇乱码，请选择“按播放出现顺序”。
             </div>
         </div>
         
@@ -862,30 +871,46 @@
     // 4. Batch Logic (Hybrid Mode: Direct File + Folder Queue)
     // =======================================================
     
+// --- [修复版] 事件监听器 (处理点击冲突) ---
     function setupBatchEventListeners() {
         const zone = document.getElementById('batchDropZone');
         const folderInput = document.getElementById('batchFolderInput');
+        const sortWrapper = document.getElementById('sortOptionsWrapper');
 
-        // 1. Click to Select Folder
+        // 1. 关键修复：点击排序选项时，不要触发“打开文件夹”
+        if (sortWrapper) {
+            sortWrapper.onclick = (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
+            };
+        }
+
+        // 2. 点击虚线框 -> 打开文件选择器
         zone.onclick = () => {
             folderInput.value = ''; 
             folderInput.click();
         };
 
+        // 3. 处理手动选择文件
         folderInput.onchange = (e) => {
             const files = Array.from(e.target.files);
             if(files.length > 0) processFileList(files);
         };
 
-        // 2. Drag & Drop
-        zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('drag-over'); };
-        zone.ondragleave = () => zone.classList.remove('drag-over');
+        // 4. 处理拖拽效果
+        zone.ondragover = (e) => { 
+            e.preventDefault(); 
+            zone.classList.add('drag-over'); 
+        };
+        zone.ondragleave = () => { 
+            zone.classList.remove('drag-over'); 
+        };
         
-        zone.ondrop = async (e) => {
-            e.preventDefault();
+        // 5. 处理文件放入
+        zone.ondrop = (e) => {
+            e.preventDefault(); 
             zone.classList.remove('drag-over');
             
-            // Try to read files directly
+            // 获取拖入的文件
             const files = Array.from(e.dataTransfer.files);
             
             if (files.length > 0) {
@@ -893,12 +918,47 @@
             } else {
                 const logEl = document.getElementById('batchLog');
                 logEl.style.display = 'block';
-                logEl.innerText = "⚠️ Browser blocked folder drag.\nPlease CLICK the box to select the folder, or drag images directly.";
-                setStatus('error', "Browser blocked drag. Please CLICK to select folder.");
+                logEl.innerText = "⚠️ 无法读取文件，可能是浏览器限制了文件夹拖拽。\n请尝试点击虚线框来选择文件夹。";
             }
         };
     }
+// --- [新增] 核心算法：根据播放时间轴获取图片顺序 ---
+    function getKeysSortedByTimeline(movieData) {
+        const appearanceMap = {}; // 记录每个 key 第一次出现的帧索引
+        const imageKeys = Object.keys(movieData.images || {});
 
+        // 初始化
+        imageKeys.forEach(key => appearanceMap[key] = Infinity);
+
+        // 遍历所有 Sprite (图层)
+        (movieData.sprites || []).forEach(sprite => {
+            const key = sprite.imageKey;
+            if (!key || !movieData.images[key]) return;
+
+            // 遍历该图层的所有帧，找到第一次出现 (alpha > 0) 的时间
+            (sprite.frames || []).forEach((frame, frameIndex) => {
+                // 如果透明度大于0，说明图片显示出来了
+                if (frame.alpha > 0) {
+                    if (frameIndex < appearanceMap[key]) {
+                        appearanceMap[key] = frameIndex;
+                    }
+                }
+            });
+        });
+
+        // 排序：按第一次出现的帧号从小到大排
+        // 如果有些图从未出现(Infinity)，则按 key 名字母序排在最后
+        return imageKeys.sort((a, b) => {
+            const frameA = appearanceMap[a];
+            const frameB = appearanceMap[b];
+            
+            if (frameA === frameB) {
+                return a.localeCompare(b); // 出现时间相同，按名字兜底
+            }
+            return frameA - frameB;
+        });
+    }
+    // --- [修改版] 批量处理逻辑 (支持两种排序模式) ---
     async function processFileList(fileList) {
         if (!currentMovieData) {
             setStatus('error', "Please load an SVGA file first.");
@@ -909,7 +969,7 @@
         logEl.style.display = 'block';
         logEl.innerText = "> Analyzing input...\n";
         
-        // Filter images
+        // 1. 过滤用户上传的图片
         const validImages = fileList.filter(f => f.name.match(/\.(png|jpg|jpeg)$/i));
 
         if (validImages.length === 0) {
@@ -917,15 +977,26 @@
             return;
         }
 
-        // --- Core Sort & Replace Logic ---
+        // 2. 对用户上传的图片，永远按文件名自然排序 (0, 1, 2...)
         const naturalSort = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'}).compare;
-
-        const svgaKeys = Object.keys(currentMovieData.images).sort(naturalSort);
         validImages.sort((a, b) => naturalSort(a.name, b.name));
 
-        logEl.innerText += `> Sorted ${validImages.length} input images.\n`;
-        logEl.innerText += `> Processing replacements...\n`;
+        // 3. [关键] 获取 SVGA 内部 Keys 的顺序
+        const sortMode = document.querySelector('input[name="sortMode"]:checked').value;
+        let svgaKeys;
 
+        if (sortMode === 'timeline') {
+            logEl.innerText += "> Mode: Sort by Timeline (Playback Order)...\n";
+            svgaKeys = getKeysSortedByTimeline(currentMovieData);
+        } else {
+            logEl.innerText += "> Mode: Sort by Filename (Default)...\n";
+            svgaKeys = Object.keys(currentMovieData.images).sort(naturalSort);
+        }
+
+        logEl.innerText += `> Uploaded: ${validImages.length} | Slots: ${svgaKeys.length}\n`;
+        logEl.innerText += `----------------------------------------\n`;
+
+        // 4. 执行对位替换
         const count = Math.min(svgaKeys.length, validImages.length);
         
         for (let i = 0; i < count; i++) {
@@ -935,15 +1006,16 @@
             const buf = await file.arrayBuffer();
             currentMovieData.images[key] = new Uint8Array(buf);
             
-            logEl.innerText += `[${i+1}] ${key} <== ${file.name}\n`;
+            // 打印日志方便核对
+            logEl.innerText += `[${i+1}] Key: ${key.substring(0,8)}... <== ${file.name}\n`;
         }
         
         logEl.innerText += `----------------------------------------\n`;
         logEl.innerText += `Done! Replaced ${count} frames.\n`;
         
-        setStatus('success', `Batch replaced ${count} images!`);
+        setStatus('success', `Batch replaced ${count} images (${sortMode === 'timeline' ? 'Timeline' : 'Name'} Mode)!`);
         
-        // Refresh UI
+        // 刷新 UI
         renderAssetsList(currentMovieData.images); 
         tryDynamicPreview(); 
     }
