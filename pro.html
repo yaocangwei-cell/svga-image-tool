@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SVGA Asset Replacement Tool | V10 (Final Remix)</title>
+    
+    <style>
+        /* =========================================
+           V10 原版核心样式 (严格保留)
+           ========================================= */
+        body {
+            font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; 
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            background-color: #0d0d0d; 
+            color: #e0e0e0; 
+            line-height: 1.6;
+            overflow-x: hidden; 
+            position: relative;
+        }
+
+        /* Background Grid Pattern */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%231a1a1a' fill-opacity='0.6' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='3'/%3E%3Ccircle cx='13' cy='13' r='3'/%3E%3C/g%3E%3C/svg%3E");
+            background-repeat: repeat;
+            opacity: 0.8; 
+            pointer-events: none; 
+            z-index: -1; 
+        }
+
+        /* --- Main Content Area --- */
+        .main-area {
+            max-width: 960px; 
+            width: 95%;
+            margin: 40px auto;
+            background-color: #1a1a1a; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 40px rgba(0, 255, 128, 0.05); 
+            border: 1px solid rgba(30, 255, 128, 0.1); 
+            padding: 35px;
+            animation: fadeIn 0.8s ease-out;
+            position: relative; 
+            z-index: 1;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Status Bar --- */
+        .status-bar {
+            margin-bottom: 25px;
+            padding: 15px 20px;
+            border-radius: 8px; 
+            font-weight: 600;
+            display: none;
+            font-size: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            border: 1px solid; 
+        }
+        .status-error { background-color: #3d1b1b; border-color: #7b2929; color: #ff8c8c; } 
+        .status-success { background-color: #1b3d2b; border-color: #297b4a; color: #8cffad; } 
+        .status-loading { background-color: #1b2e3d; border-color: #29577b; color: #8cb2ff; } 
+        
+        /* --- Title --- */
+        h1 {
+            text-align: center;
+            color: #00ff80; 
+            font-size: 2.5em; 
+            margin-bottom: 30px;
+            font-weight: 800; 
+            letter-spacing: 1px; 
+            text-shadow: 0 0 15px rgba(0, 255, 128, 0.4); 
+        }
+        h3 {
+            color: #00ff80; 
+            font-size: 1.4em;
+            margin-top: 35px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid rgba(0, 255, 128, 0.2); 
+            padding-bottom: 10px;
+            font-weight: 600;
+        }
+
+        /* --- Buttons (Modified) --- */
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px; 
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            background-color: #2a2a2a; 
+            border: 1px solid #4a4a4a; 
+            color: #e0e0e0;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            background-color: #3a3a3a;
+        }
+        .btn-download { 
+            background: linear-gradient(45deg, #00e676, #00b368); 
+            color: #1a1a1a;
+            border: none;
+            box-shadow: 0 4px 20px rgba(0, 255, 128, 0.4);
+            font-weight: 700;
+            display: block;
+            margin: 40px auto 0; /* Center at bottom */
+            width: 50%;
+            text-align: center;
+        }
+        .btn-download:hover { 
+            background: linear-gradient(45deg, #00b368, #00e676);
+            box-shadow: 0 6px 25px rgba(0, 255, 128, 0.6);
+        }
+        input[type=file] { display: none; }
+
+        /* --- Player Area --- */
+        #player-wrapper { 
+            position: relative;
+            height: auto; 
+            min-height: 350px; /* Increased height for better drag target */
+            width: 100%;
+            background-color: #2a2a2a; 
+            border: 2px dashed #4a4a4a; /* Dashed border for drop zone feel */
+            border-radius: 10px; 
+            margin-bottom: 25px; 
+            overflow: hidden; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.4); 
+            cursor: pointer; /* Clickable */
+            transition: border-color 0.3s;
+        }
+        #player-wrapper:hover {
+            border-color: #00ff80;
+        }
+        
+        #drag-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(26, 26, 26, 0.9); 
+            z-index: 20; 
+            pointer-events: none;
+            color: #b0b0b0;
+            text-align: center;
+        }
+        #drag-overlay.hidden { display: none; }
+        #drag-overlay.drag-over { 
+            background-color: rgba(0, 255, 128, 0.15); 
+            border: none;
+            color: #00ff80;
+        }
+        #drag-overlay svg { margin-bottom: 15px; color: #00ff80; width: 60px; height: 60px; } 
+        #drag-overlay span { font-size: 18px; font-weight: 500; margin-bottom: 5px; color: #e0e0e0; }
+        #drag-overlay div { font-size: 14px; color: #a0a0a0; margin-top: 5px; }
+
+        #playerCanvas { 
+            width: 0px; 
+            height: 0px; 
+            position: relative;
+            border-radius: 8px; 
+            overflow: hidden;
+        }
+        #playerCanvas canvas {
+            width: 100% !important;
+            height: 100% !important;
+            display: block; 
+        }
+        
+        #playerStatus {
+            position: absolute;
+            top: 15px; left: 15px; font-size: 13px; color: #00ff80; 
+            z-index: 10;
+            background-color: rgba(26, 26, 26, 0.7); 
+            padding: 5px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 255, 128, 0.2);
+        }
+        #fileDimensions { font-size: 14px; font-weight: normal; color: #a0a0a0; margin-left: 8px; }
+
+        /* --- Color Selector --- */
+        #color-selector {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 30px;
+            padding: 10px 0;
+            border-top: 1px solid rgba(0, 255, 128, 0.1); 
+            border-bottom: 1px solid rgba(0, 255, 128, 0.1);
+        }
+        .color-swatch {
+            width: 35px; height: 35px; border-radius: 50%;
+            cursor: pointer; 
+            transition: transform 0.2s ease;
+            display: inline-block;
+            border: 2px solid transparent;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .color-swatch:hover { 
+            transform: scale(1.15); 
+            border-color: #00ff80; 
+        }
+        .color-swatch[data-color="#FFFFFF"] { border: 2px solid #666; } 
+
+       /* --- Assets List (Grid Layout / 网格布局优化版) --- */
+    .assets-list { 
+        background-color: #222; 
+        border: 1px solid #4a4a4a; 
+        border-radius: 10px; 
+        padding: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        /* 核心修改：启用网格布局 */
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 15px;
+        max-height: 600px; /* 限制高度，防止页面过长 */
+        overflow-y: auto;
+    }
+
+    .asset-item { 
+        display: flex; 
+        flex-direction: column; /* 竖向排列：图在上，字在下 */
+        align-items: center; 
+        text-align: center;
+        padding: 10px; 
+        background-color: #1a1a1a; 
+        border: 1px solid #333;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    .asset-item:hover { 
+        transform: translateY(-2px);
+        border-color: #00ff80;
+        background-color: #252525;
+    }
+
+    .asset-preview-wrapper {
+        position: relative;
+        width: 100%;
+        height: 90px;
+        margin-bottom: 8px;
+        background-color: #2a2a2a; 
+        border-radius: 6px;
+        border: 1px solid #444;
+        display: flex; align-items: center; justify-content: center;
+    }
+
+    .asset-preview { 
+        max-width: 100%; 
+        max-height: 100%; 
+        object-fit: contain; 
+    }
+
+    .asset-info { 
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .asset-key { 
+        font-weight: 700; font-size: 13px; color: #fff; 
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+        margin-bottom: 2px;
+    }
+    .asset-meta { font-size: 11px; color: #888; }
+    
+    /* 下载图标悬浮在图片右上角 */
+    .download-icon { 
+        position: absolute;
+        top: 2px; right: 2px;
+        color: rgba(255,255,255,0.7); 
+        background: rgba(0,0,0,0.6);
+        border-radius: 4px;
+        padding: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .download-icon:hover { color: #00ff80; background: #000; }
+    .download-icon svg { width: 14px; height: 14px; display: block; }
+
+    .btn-upload-small { 
+        width: 100%;
+        padding: 6px 0; 
+        background: #333; 
+        border: 1px solid #555;
+        color: #ccc; 
+        font-size: 12px; 
+        border-radius: 4px; 
+        cursor: pointer; 
+        transition: all 0.2s ease;
+        text-align: center;
+        display: block; 
+    }
+    .btn-upload-small:hover { 
+        background: #00ff80;
+        border-color: #00ff80;
+        color: #000;
+        font-weight: bold;
+    }
+    
+    .placeholder {
+        grid-column: 1 / -1;
+        padding: 40px; 
+        text-align: center; 
+        color: #666; 
+        font-size: 1em;
+    }
+        /* =========================================
+           新增：批量替换模块样式 (FROM 图二)
+           ========================================= */
+        .batch-section {
+            margin-top: 40px;
+            background-color: #222222;
+            border: 1px solid #00ff80; /* Highlighted border */
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 255, 128, 0.05);
+        }
+        .batch-drop-zone {
+            border: 2px dashed #555;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .batch-drop-zone:hover, .batch-drop-zone.drag-over {
+            border-color: #00ff80;
+            background: rgba(0, 255, 128, 0.05);
+            color: #fff;
+        }
+        .batch-icon {
+            font-size: 40px; margin-bottom: 10px; display: block; opacity: 0.7;
+        }
+        .log-console {
+            background: #000;
+            color: #00ff80;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            display: none; 
+            white-space: pre-wrap;
+        }
+        .batch-hint {
+            font-size: 12px; color: #666; margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;
+        }
+/* 补全悬浮窗样式 */
+    #fileMetaOverlay {
+        position: absolute; top: 15px; right: 15px;
+        background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(6px);
+        padding: 10px 15px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #ccc; font-family: 'Consolas', monospace; font-size: 12px; z-index: 20;
+        display: none; text-align: right; line-height: 1.6; pointer-events: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    #fileMetaOverlay b { color: #fff; }
+    .mem-normal { color: #8cffad; }
+    .mem-warning { color: #ff4d4d !important; font-weight: bold; display: inline-block; margin-top: 2px; border-top: 1px dashed #555; padding-top: 2px; }
+/* --- [补全] 滚动条美化 (深色极简风) --- */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #1a1a1a; 
+        border-left: 1px solid #333;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #555; 
+        border-radius: 5px;
+        border: 2px solid #1a1a1a;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #00ff80; /* 悬停高亮 */
+    }
+
+    /* --- [补全] 预览信息悬浮窗 (右上角) --- */
+    #fileMetaOverlay {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(4px);
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #ddd;
+        font-family: Consolas, Monaco, monospace;
+        font-size: 12px;
+        z-index: 50;
+        display: none; /* 默认隐藏 */
+        text-align: right;
+        line-height: 1.5;
+        pointer-events: none;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    #fileMetaOverlay b { color: #fff; }
+    
+    .mem-normal { color: #8cffad; }
+    .mem-warning { 
+        color: #ff4d4d !important; 
+        font-weight: bold; 
+        display: inline-block;
+        border-bottom: 1px dashed #ff4d4d;
+    }
+
+    </style>
+</head>
+<body>
+
+<div class="main-area">
+    
+    <h1>SVGA Animation Asset Replacement Tool</h1>
+    
+    <input type="file" id="svgaInput" accept=".svga" style="display: none;">
+
+    <h3>Animation Preview <span id="fileDimensions"></span></h3>
+    
+    <div id="player-wrapper">
+        <div id="drag-overlay">
+            <svg fill="currentColor" width="60" height="60" viewBox="0 0 24 24" style="margin-bottom: 15px;"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM10.71 14.29l1.59 1.59V12h1.4v3.88l1.59-1.59.99.99-3 3-3-3 .99-.99z"/></svg>
+            <span>Drag & Drop your SVGA file here to preview</span>
+            <div>(拖拽或点击上传)</div>
+        </div>
+
+        <div id="playerCanvas"></div>
+        <span id="playerStatus" style="color:#ccc; display:none;">Loading...</span>
+    </div>
+
+    <div id="statusBar" class="status-bar"></div>
+    
+    <h3>Background Color Selection</h3>
+    <div id="color-selector">
+        <span class="color-swatch" data-color="#000000" style="background:#000000" title="Black"></span>
+        <span class="color-swatch" data-color="#FFFFFF" style="background:#FFFFFF" title="White"></span>
+        <span class="color-swatch" data-color="#3D82FF" style="background:#3D82FF" title="Blue"></span>
+        <span class="color-swatch" data-color="#55C464" style="background:#55C464" title="Green"></span>
+        <span class="color-swatch" data-color="#FFDD33" style="background:#FFDD33" title="Yellow"></span>
+        <span class="color-swatch" data-color="#FF4040" style="background:#FF4040" title="Red"></span>
+        <span class="color-swatch" data-color="#F2F2F2" style="background:#F2F2F2" title="Light Gray"></span>
+        <span class="color-swatch" data-color="#E0E0E0" style="background:#E0E0E0" title="Medium Gray"></span>
+    </div>
+
+    <h3>Asset List (Click to Replace, Right-Click to Download)</h3>
+    <div class="assets-list" id="assetsList">
+        <div class="placeholder">Upload an SVGA file to display the asset list here.</div>
+    </div>
+
+    <div class="batch-section">
+        <h3 style="margin-top:0; border:none; color:#00ff80;">🚀 Batch Frame Replacement</h3>
+        
+        <div class="batch-drop-zone" id="batchDropZone">
+            <span class="batch-icon">📂</span>
+            <div style="font-size: 16px;">
+                <b>拖入全选的图片 (Select All & Drag)</b><br>
+                <span style="font-size:14px; color:#888;">或者 <b>点击此处</b> 选择文件夹</span>
+            </div>
+            <div class="batch-hint">
+                <b>操作指南:</b><br>
+                1. 优先尝试: 在文件夹内 Ctrl+A 全选图片，拖入此处。<br>
+                2. 如果想选文件夹: 直接点击这个虚线框，在弹窗里选文件夹。<br>
+                <b>逻辑:</b> 按文件名顺序与 SVGA 帧顺序对位替换。
+            </div>
+        </div>
+        
+        <input type="file" id="batchFolderInput" webkitdirectory directory multiple style="display:none">
+        
+        <div class="log-console" id="batchLog"></div>
+    </div>
+
+    <button id="downloadBtn" class="btn btn-download" disabled>
+        <svg fill="currentColor" width="20" height="20" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 8px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        Export New File
+    </button>
+
+</div>
+
+<script src="protobuf.min.js"></script>
+<script src="pako.min.js"></script>
+<script src="svga.min.js"></script>
+
+<script>
+    // --- Protobuf Definition ---
+    const officialProtoDefinition = `
+    syntax = "proto3";
+    package com.opensource.svga;
+    message MovieParams { float viewBoxWidth = 1; float viewBoxHeight = 2; int32 fps = 3; int32 frames = 4; }
+    message Rect { float x = 1; float y = 2; float width = 3; float height = 4; }
+    message Transform { float a = 1; float b = 2; float c = 3; float d = 4; float tx = 5; float ty = 6; }
+    message Point { float x = 1; float y = 2; }
+    message Layout { float x = 1; float y = 2; float width = 3; float height = 4; }
+    message ShapeEntity { enum ShapeType { SHAPE = 0; RECT = 1; ROUNDED_RECT = 2; ELLIPSE = 3; POLYGON = 4; TEXT = 5; } ShapeType type = 1; string args = 2; ShapeStyle styles = 3; Transform transform = 4; }
+    message ShapeStyle { float fillR = 1; float fillG = 2; float fillB = 3; float fillA = 4; float strokeR = 5; float strokeG = 6; float strokeB = 7; float strokeA = 8; float strokeWidth = 9; float miterLimit = 10; repeated float lineDash = 11; int32 lineCap = 12; int32 lineJoin = 13; }
+    message FrameEntity { float alpha = 1; Layout layout = 2; Transform transform = 3; string clipPath = 4; repeated ShapeEntity shapes = 5; repeated string events = 6; repeated string filters = 7; }
+    message SpriteEntity { string imageKey = 1; repeated FrameEntity frames = 2; string zPosition = 3; repeated string events = 4; }
+    message AudioEntity { string audioKey = 1; int32 startFrame = 2; int32 endFrame = 3; int32 startTime = 4; int32 totalTime = 5; }
+    message MovieEntity { string version = 1; MovieParams params = 2; map<string, bytes> images = 3; repeated SpriteEntity sprites = 4; repeated AudioEntity audios = 5; }
+    `;
+
+    let MovieEntity = null;
+    let currentMovieData = null; 
+    let player = null; 
+    let parser = null;
+    const objectUrls = {};
+    let currentBgColor = "#FFFFFF"; 
+
+    // --- Status Messages ---
+    const StatusMessages = {
+        'initial_success': 'Ready. Drag & Drop SVGA file to begin.',
+        'load_start': (fileName) => `⏳ Loading: ${fileName}...`,
+        'file_format_error': '❌ File format error. Please drop a .svga file.',
+        'parse_success': (count) => `✅ Parsed successfully! Contains ${count} assets.`,
+        'decode_fail': (msg) => `❌ Decoding failed: ${msg}`,
+        'preview_loading': 'Loading preview...',
+        'preview_success': 'Preview Ready',
+        'export_success': '✅ File exported successfully!',
+        'export_fail': (msg) => `❌ Export failed: ${msg}`,
+        'replace_success': (key) => `✅ Replaced "${key}"`,
+        'bg_color_set': (color) => `✅ Background: ${color}.`,
+        'no_assets_placeholder': 'This SVGA file contains no image assets.',
+    };
+
+    function setStatus(type, msg) {
+        const el = document.getElementById('statusBar');
+        el.style.display = 'block';
+        el.className = `status-bar status-${type}`;
+        el.innerHTML = typeof msg === 'function' ? msg() : msg;
+    }
+
+    // --- Init ---
+    window.onload = () => {
+        try {
+            const parsed = protobuf.parse(officialProtoDefinition, { keepCase: true });
+            MovieEntity = parsed.root.lookupType("com.opensource.svga.MovieEntity");
+            parser = new SVGA.Parser();
+
+            // Color Selector
+            document.querySelectorAll('.color-swatch').forEach(swatch => {
+                swatch.addEventListener('click', (e) => {
+                    const color = e.target.getAttribute('data-color');
+                    currentBgColor = color; 
+                    document.getElementById('playerCanvas').style.backgroundColor = color; 
+                    setStatus('success', StatusMessages.bg_color_set(color));
+                });
+            });
+            document.getElementById('playerCanvas').style.backgroundColor = currentBgColor;
+
+            // Main Drop Zone (Player Wrapper)
+            const dropArea = document.getElementById('player-wrapper');
+            const fileInput = document.getElementById('svgaInput');
+
+            // Click to upload
+            dropArea.onclick = (e) => {
+                // 防止点击拖拽提示时触发两次
+                if(e.target.id !== 'playerCanvas' && e.target.tagName !== 'CANVAS') {
+                    fileInput.click();
+                }
+            };
+
+            dropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                document.getElementById('drag-overlay').classList.add('drag-over');
+            });
+            dropArea.addEventListener('dragleave', (e) => {
+                document.getElementById('drag-overlay').classList.remove('drag-over');
+            });
+            dropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                document.getElementById('drag-overlay').classList.remove('drag-over');
+                const file = e.dataTransfer.files[0];
+                if (file && file.name.toLowerCase().endsWith('.svga')) {
+                    loadFile(file);
+                } else {
+                    setStatus('error', StatusMessages.file_format_error);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) loadFile(file);
+            });
+
+            // Initialize Batch Listeners
+            setupBatchEventListeners();
+
+            console.log("System initialized.");
+        } catch (e) {
+            console.error("Init failed:", e);
+        }
+    };
+    
+    // --- Load File (修复版：全量内存计算 + UI更新) ---
+    async function loadFile(file) {
+        if(!file || !file.name.toLowerCase().endsWith('.svga')) {
+            setStatus('error', "Please select a .svga file");
+            return;
+        }
+        originalFileName = file.name;
+        document.getElementById('downloadBtn').disabled = true;
+        document.getElementById('assetsList').innerHTML = `<div class="placeholder">Parsing...</div>`;
+        document.getElementById('drag-overlay').classList.add('hidden');
+        document.getElementById('playerStatus').style.display = 'block';
+        
+        // 确保悬浮窗存在
+        let overlay = document.getElementById('fileMetaOverlay');
+        if(!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'fileMetaOverlay';
+            document.getElementById('player-wrapper').appendChild(overlay);
+        }
+        overlay.style.display = 'none'; // 先隐藏，计算完再显示
+        
+        // 重置播放器
+        document.getElementById('playerCanvas').innerHTML = ''; 
+        if (player) { player.stopAnimation(); player.clear(); }
+        player = new SVGA.Player('#playerCanvas'); 
+        player.setContentMode("AspectFit"); 
+        player.loops = 0; 
+
+        try {
+            const buffer = await file.arrayBuffer();
+            let inflatedData;
+            try { inflatedData = pako.inflate(new Uint8Array(buffer)); } 
+            catch (err) { inflatedData = new Uint8Array(buffer); }
+
+            currentMovieData = MovieEntity.decode(inflatedData);
+            
+            // ============================================
+            // [核心修复] 官方标准内存计算逻辑
+            // 内存 ≈ 画布帧缓存 + 所有位图素材解压显存
+            // ============================================
+            const w = currentMovieData.params.viewBoxWidth;
+            const h = currentMovieData.params.viewBoxHeight;
+            const fileSizeKB = (file.size / 1024).toFixed(1);
+            
+            // 1. 基础显存 (画布 FrameBuffer)
+            let totalMemBytes = w * h * 4; 
+
+            // 2. 累加所有素材图片的显存
+            const imageKeys = Object.keys(currentMovieData.images || {});
+            
+            // 并行获取所有图片的真实分辨率 (需要解码)
+            const dimensionPromises = imageKeys.map(key => getImageDimensions(currentMovieData.images[key]));
+            const dimensions = await Promise.all(dimensionPromises);
+            
+            dimensions.forEach(dim => {
+                // 如果图片有效，累加其显存 (宽 * 高 * 4字节)
+                if (dim.width > 0 && dim.height > 0) {
+                    totalMemBytes += (dim.width * dim.height * 4);
+                }
+            });
+
+            // 转换为 MB
+            const memMB = (totalMemBytes / 1024 / 1024).toFixed(2);
+            
+            let memHtml = `<span class="mem-normal">RAM: <b>${memMB} MB</b></span>`;
+            
+            // 阈值判断：超过 8MB 变红 + ⚠️ 图标
+            if (parseFloat(memMB) > 8.0) {
+                memHtml = `<span class="mem-warning">⚠️ 超过8MB! (${memMB} MB)</span>`;
+            }
+
+            // 更新悬浮窗
+            overlay.innerHTML = `
+                <span>File: <b>${file.name}</b></span>
+                <span>Size: <b>${fileSizeKB} KB</b></span>
+                <span>Dim: <b>${w} x ${h}</b></span>
+                ${memHtml}
+            `;
+            overlay.style.display = 'block';
+            // ============================================
+
+            setStatus('success', `Parsed: ${imageKeys.length} assets`);
+            renderAssetsList(currentMovieData.images);
+            tryDynamicPreview(); 
+
+            document.getElementById('downloadBtn').disabled = false;
+            document.getElementById('fileDimensions').innerText = `(${w}x${h})`;
+
+        } catch (err) {
+            setStatus('error', "Parse error: " + err.message);
+            console.error(err);
+            document.getElementById('drag-overlay').classList.remove('hidden');
+        }
+    }
+    // --- Preview ---
+    function tryDynamicPreview() {
+        if (!currentMovieData || !player) return; 
+        
+        player.stopAnimation();
+        player.clear(); 
+        
+        const { viewBoxWidth, viewBoxHeight } = currentMovieData.params;
+        const playerCanvas = document.getElementById('playerCanvas');
+        playerCanvas.style.width = `${viewBoxWidth}px`;
+        playerCanvas.style.height = `${viewBoxHeight}px`;
+
+        try {
+            const blob = packSVGA();
+            const url = URL.createObjectURL(blob);
+            
+            parser.load(url, (videoItem) => {
+                if (player) {
+                    player.setVideoItem(videoItem);
+                    player.startAnimation(); 
+                    document.getElementById('playerStatus').style.display = 'none';
+                }
+                URL.revokeObjectURL(url); 
+            });
+        } catch (e) {
+            console.error("Preview error:", e);
+        }
+    }
+
+    function packSVGA() {
+        const message = MovieEntity.create(currentMovieData);
+        const encodedBuffer = MovieEntity.encode(message).finish();
+        const deflatedData = pako.deflate(encodedBuffer);
+        return new Blob([deflatedData], { type: "application/octet-stream" });
+    }
+
+    async function getImageDimensions(imgBytes) {
+        return new Promise(resolve => {
+            if (!imgBytes || imgBytes.length === 0) return resolve({ width: 0, height: 0 });
+            const blob = new Blob([imgBytes], { type: 'image/png' }); 
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.width, height: img.height }); };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve({ width: 0, height: 0 }); };
+            img.src = url;
+        });
+    }
+    
+    window.downloadAsset = (event, key) => {
+        event.preventDefault(); 
+        const imgBytes = currentMovieData.images[key];
+        const blob = new Blob([imgBytes], { type: 'application/octet-stream' }); 
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `${key}.png`; 
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url); 
+    };
+
+// --- Render List (GRID LAYOUT / 网格渲染逻辑) ---
+    function renderAssetsList(imagesMap) {
+        const container = document.getElementById('assetsList');
+        container.innerHTML = '';
+        if (!imagesMap || Object.keys(imagesMap).length === 0) {
+            container.innerHTML = `<div class="placeholder">${StatusMessages.no_assets_placeholder}</div>`;
+            return;
+        }
+        
+        // 自然排序
+        const keys = Object.keys(imagesMap).sort(new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'}).compare);
+
+        keys.forEach(key => {
+            const imgBytes = imagesMap[key];
+            const blob = new Blob([imgBytes], { type: 'image/png' });
+            const imgUrl = URL.createObjectURL(blob);
+            objectUrls[key] = imgUrl; 
+            
+            const div = document.createElement('div');
+            div.className = 'asset-item';
+            div.innerHTML = `
+                <div class="asset-preview-wrapper">
+                    <img src="${imgUrl}" class="asset-preview">
+                    <div class="download-icon" onclick="downloadAsset(event, '${key}')" title="Download">
+                        <svg fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    </div>
+                </div>
+                <div class="asset-info">
+                    <div class="asset-key" title="${key}">${key}</div>
+                    <div class="asset-meta">${(imgBytes.length / 1024).toFixed(1)} KB</div>
+                </div>
+                <label class="btn-upload-small">
+                    Replace
+                    <input type="file" style="display:none" accept="image/*" onchange="handleReplace('${key}', this)">
+                </label>
+            `;
+            container.appendChild(div);
+
+            getImageDimensions(imgBytes).then(dim => {
+                const metaDiv = div.querySelector('.asset-meta');
+                metaDiv.innerText += ` | ${dim.width}x${dim.height}`;
+            });
+        });
+    }
+
+    // 更新替换逻辑以适配网格 DOM 结构
+    window.handleReplace = async (key, inputElement) => {
+        const file = inputElement.files[0];
+        if (!file) return;
+        const buffer = await file.arrayBuffer();
+        const newBytes = new Uint8Array(buffer);
+        
+        currentMovieData.images[key] = newBytes;
+
+        const blob = new Blob([newBytes], { type: 'image/png' });
+        if (objectUrls[key]) URL.revokeObjectURL(objectUrls[key]);
+        const newUrl = URL.createObjectURL(blob);
+        objectUrls[key] = newUrl; 
+        
+        // 查找父级 grid item
+        const item = inputElement.closest('.asset-item');
+        item.querySelector('.asset-preview').src = newUrl;
+        
+        getImageDimensions(newBytes).then(dim => {
+            item.querySelector('.asset-meta').innerText = 
+                `${(newBytes.length / 1024).toFixed(1)} KB | ${dim.width}x${dim.height} (New)`;
+        });
+
+        setStatus('success', StatusMessages.replace_success(key));
+        tryDynamicPreview(); 
+    };
+    // --- Export ---
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+        try {
+            const blob = packSVGA();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `svga_remix_${new Date().getTime()}.svga`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url); 
+            setStatus('success', StatusMessages.export_success);
+        } catch(e) {
+            setStatus('error', StatusMessages.export_fail(e.message));
+        }
+    });
+
+    // =======================================================
+    // 4. Batch Logic (Hybrid Mode: Direct File + Folder Queue)
+    // =======================================================
+    
+    function setupBatchEventListeners() {
+        const zone = document.getElementById('batchDropZone');
+        const folderInput = document.getElementById('batchFolderInput');
+
+        // 1. Click to Select Folder
+        zone.onclick = () => {
+            folderInput.value = ''; 
+            folderInput.click();
+        };
+
+        folderInput.onchange = (e) => {
+            const files = Array.from(e.target.files);
+            if(files.length > 0) processFileList(files);
+        };
+
+        // 2. Drag & Drop
+        zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('drag-over'); };
+        zone.ondragleave = () => zone.classList.remove('drag-over');
+        
+        zone.ondrop = async (e) => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+            
+            // Try to read files directly
+            const files = Array.from(e.dataTransfer.files);
+            
+            if (files.length > 0) {
+                processFileList(files);
+            } else {
+                const logEl = document.getElementById('batchLog');
+                logEl.style.display = 'block';
+                logEl.innerText = "⚠️ Browser blocked folder drag.\nPlease CLICK the box to select the folder, or drag images directly.";
+                setStatus('error', "Browser blocked drag. Please CLICK to select folder.");
+            }
+        };
+    }
+
+    async function processFileList(fileList) {
+        if (!currentMovieData) {
+            setStatus('error', "Please load an SVGA file first.");
+            return;
+        }
+
+        const logEl = document.getElementById('batchLog');
+        logEl.style.display = 'block';
+        logEl.innerText = "> Analyzing input...\n";
+        
+        // Filter images
+        const validImages = fileList.filter(f => f.name.match(/\.(png|jpg|jpeg)$/i));
+
+        if (validImages.length === 0) {
+            logEl.innerText += "Error: No valid images found.\n";
+            return;
+        }
+
+        // --- Core Sort & Replace Logic ---
+        const naturalSort = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'}).compare;
+
+        const svgaKeys = Object.keys(currentMovieData.images).sort(naturalSort);
+        validImages.sort((a, b) => naturalSort(a.name, b.name));
+
+        logEl.innerText += `> Sorted ${validImages.length} input images.\n`;
+        logEl.innerText += `> Processing replacements...\n`;
+
+        const count = Math.min(svgaKeys.length, validImages.length);
+        
+        for (let i = 0; i < count; i++) {
+            const key = svgaKeys[i];
+            const file = validImages[i];
+
+            const buf = await file.arrayBuffer();
+            currentMovieData.images[key] = new Uint8Array(buf);
+            
+            logEl.innerText += `[${i+1}] ${key} <== ${file.name}\n`;
+        }
+        
+        logEl.innerText += `----------------------------------------\n`;
+        logEl.innerText += `Done! Replaced ${count} frames.\n`;
+        
+        setStatus('success', `Batch replaced ${count} images!`);
+        
+        // Refresh UI
+        renderAssetsList(currentMovieData.images); 
+        tryDynamicPreview(); 
+    }
+
+</script>
+</body>
+</html>
