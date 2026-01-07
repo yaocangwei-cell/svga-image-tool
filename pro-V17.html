@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SVGA Toolset Ultimate | V17.0</title>
+    
+    <style>
+        /* =========================================
+           全局核心样式 (基于 Part 01)
+           ========================================= */
+        :root {
+            --primary: #00ff80;
+            --bg-dark: #0d0d0d;
+            --panel-bg: #1a1a1a;
+            --border-color: #333;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; 
+            margin: 0; padding: 0;
+            display: flex; justify-content: center; align-items: flex-start;
+            min-height: 100vh;
+            background-color: var(--bg-dark); color: #e0e0e0; 
+            line-height: 1.6; overflow-x: hidden; position: relative;
+        }
+
+        /* 背景网格装饰 */
+        body::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%231a1a1a' fill-opacity='0.6' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='3'/%3E%3Ccircle cx='13' cy='13' r='3'/%3E%3C/g%3E%3C/svg%3E");
+            background-repeat: repeat; opacity: 0.8; pointer-events: none; z-index: -1; 
+        }
+
+        .main-area {
+            max-width: 960px; width: 95%; margin: 40px auto;
+            background-color: var(--panel-bg); border-radius: 12px; 
+            box-shadow: 0 10px 40px rgba(0, 255, 128, 0.05); 
+            border: 1px solid rgba(30, 255, 128, 0.1); 
+            padding: 35px; animation: fadeIn 0.8s ease-out;
+            position: relative; z-index: 1;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Header Section --- */
+        .header-container { text-align: center; margin-bottom: 20px; }
+        
+        h1 {
+            color: var(--primary); font-size: 2.5em; margin: 0 0 10px 0;
+            font-weight: 800; letter-spacing: 1px; 
+            text-shadow: 0 0 15px rgba(0, 255, 128, 0.4); 
+        }
+        
+        .header-meta {
+            display: flex; justify-content: center; align-items: center; gap: 15px;
+            font-size: 14px; color: #666; font-family: 'Consolas', monospace;
+        }
+        
+        .lang-btn {
+            background: transparent; border: 1px solid #444; color: #888;
+            padding: 2px 8px; border-radius: 4px; cursor: pointer;
+            transition: all 0.3s; font-size: 12px;
+        }
+        .lang-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* =========================================
+           新版 Tab 导航栏样式 (High-Tech Style)
+           ========================================= */
+        .tabs-nav {
+            display: flex; 
+            justify-content: center; /* 居中显示 */
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 35px; 
+            padding: 6px;
+            background: rgba(20, 20, 20, 0.8); /* 深色半透明背景 */
+            border: 1px solid #333;
+            border-radius: 12px; /* 圆角容器 */
+            backdrop-filter: blur(10px); /* 毛玻璃效果 */
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 10;
+        }
+
+        .tab-btn {
+            flex: 1; /* 按钮平均分布 */
+            background: transparent; 
+            border: 1px solid transparent; 
+            color: #888;
+            padding: 12px 50px; 
+            font-size: 14px; 
+            font-weight: 600;
+            cursor: pointer; 
+            position: relative; 
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            font-family: inherit;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px; /* 图标和文字的间距 */
+            overflow: hidden;
+        }
+
+        /* 鼠标悬浮态：背景微亮 + 文字变白 + 微微上浮 */
+        .tab-btn:hover { 
+            color: #fff; 
+            background: rgba(255, 255, 255, 0.03);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        /* 激活态：高亮背景 + 霓虹文字 + 边框 */
+        .tab-btn.active {
+            color: #1a1a1a; /* 深色文字 */
+            background: linear-gradient(45deg, #00e676, #00b368); /* 导出按钮同款渐变 */
+            border-color: transparent; /* 去掉边框，因为有渐变了 */
+            box-shadow: 0 4px 20px rgba(0, 255, 128, 0.4); /* 基础光晕 */
+            transform: scale(1.02); 
+            z-index: 1; /* 关键：为了让流光层在文字下方 */
+        }
+        
+        /* 选中态下的图标颜色修正 (黑色) */
+        .tab-btn.active svg, 
+        .tab-btn.active .tab-icon {
+            fill: #1a1a1a;
+            color: #1a1a1a;
+        }
+
+        /* 2. 选中态的流光动画层 (伪元素) */
+        .tab-btn.active::before {
+            content: ''; 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            /* 更加丰富的流光渐变 */
+            background: linear-gradient(90deg, #00ff80, #00b368, #00ffd5, #00ff80);
+            background-size: 400%; 
+            z-index: -1; /* 放在文字后面 */
+            opacity: 0; /* 默认隐藏流光，悬浮时才显示 */
+            transition: opacity 0.3s;
+            border-radius: 8px; /* 跟随按钮圆角 */
+        }
+
+        /* 3. 选中态 + 悬浮：触发流光和强光晕 */
+        .tab-btn.active:hover {
+            box-shadow: 0 0 30px rgba(0, 255, 128, 0.8); /* 增强光晕 */
+            color: #000;
+        }
+
+        .tab-btn.active:hover::before {
+            opacity: 1; /* 显示流光 */
+            animation: glowing 3s linear infinite; /* 复用已有的 glowing 动画 */
+        }
+
+        /* 按钮内的图标样式 */
+        .tab-icon {
+            font-size: 16px;
+            display: inline-block;
+            transition: transform 0.3s ease;
+        }
+        
+        /* 悬浮时图标旋转一下 */
+        .tab-btn:hover .tab-icon {
+            transform: rotate(-15deg) scale(1.2);
+        }
+
+        /* 装饰：未激活Tab之间的分割线 (可选) */
+        .tabs-nav::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            border-radius: 12px; pointer-events: none;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+        }
+/* =========================================
+           缺失的 Tab 内容切换逻辑 (必须补上)
+           ========================================= */
+        .tab-content { 
+            display: none; /* 关键：默认隐藏所有内容 */
+            animation: slideIn 0.4s ease-out; 
+        }
+
+        .tab-content.active { 
+            display: block; /* 关键：只有带 active 类的才显示 */
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Common Headings --- */
+        h3 {
+            color: var(--primary); font-size: 1.4em; margin-top: 35px; margin-bottom: 18px;
+            border-bottom: 1px solid rgba(0, 255, 128, 0.2); padding-bottom: 10px; font-weight: 600;
+        }
+
+        /* --- PART 01 Specific Styles --- */
+        .player-wrapper-base { 
+            position: relative; height: auto; min-height: 350px; width: 100%;
+            background-color: #2a2a2a; border: 2px dashed #4a4a4a; border-radius: 10px; 
+            margin-bottom: 25px; overflow: hidden; display: flex; align-items: center; justify-content: center;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.4); cursor: pointer; transition: border-color 0.3s;
+        }
+        .player-wrapper-base:hover { border-color: var(--primary); }
+        
+        .bg-transparent-pattern {
+            background-image: 
+                linear-gradient(45deg, #2a2a2a 25%, transparent 25%), 
+                linear-gradient(-45deg, #2a2a2a 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #2a2a2a 75%), 
+                linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #1a1a1a; 
+        }
+
+        .drag-overlay-base {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background-color: rgba(26, 26, 26, 0.9); z-index: 20; pointer-events: none;
+            color: #b0b0b0; text-align: center;
+        }
+        .drag-overlay-base.hidden { display: none; }
+        .drag-overlay-base.drag-over { background-color: rgba(0, 255, 128, 0.15); border: none; color: var(--primary); }
+        .drag-overlay-base svg { margin-bottom: 15px; color: var(--primary); width: 60px; height: 60px; } 
+
+        .canvas-container { width: 0px; height: 0px; position: relative; border-radius: 8px; overflow: hidden; }
+        .canvas-container canvas { width: 100% !important; height: 100% !important; display: block; }
+
+        /* Color Selector */
+        #color-selector {
+            display: flex; justify-content: center; gap: 12px; margin-bottom: 30px;
+            padding: 10px 0; border-top: 1px solid rgba(0, 255, 128, 0.1); border-bottom: 1px solid rgba(0, 255, 128, 0.1);
+        }
+        .color-swatch {
+            width: 35px; height: 35px; border-radius: 50%; cursor: pointer; 
+            transition: transform 0.2s ease; display: inline-block; border: 2px solid transparent;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .color-swatch:hover { transform: scale(1.15); border-color: var(--primary); }
+        .color-swatch[data-color="#FFFFFF"] { border: 2px solid #666; } 
+        .color-swatch.is-transparent {
+            background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 8px 8px;
+            background-color: #fff; border: 2px solid #555;
+        }
+
+        /* Assets List */
+        .assets-list { 
+            background-color: #222; border: 1px solid #4a4a4a; border-radius: 10px; 
+            padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px; max-height: 600px; overflow-y: auto;
+        }
+        .asset-item { 
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            padding: 10px; background-color: #1a1a1a; border: 1px solid #333;
+            border-radius: 8px; transition: all 0.2s ease; position: relative;
+        }
+        .asset-item:hover { transform: translateY(-2px); border-color: var(--primary); background-color: #252525; }
+        .asset-preview-wrapper {
+            position: relative; width: 100%; height: 90px; margin-bottom: 8px;
+            background-color: #2a2a2a; border-radius: 6px; border: 1px solid #444;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .asset-preview { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .asset-info { width: 100%; margin-bottom: 8px; }
+        .asset-key { font-weight: 700; font-size: 13px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+        .asset-meta { font-size: 11px; color: #888; }
+        .download-icon { 
+            position: absolute; top: 2px; right: 2px; color: rgba(255,255,255,0.7); 
+            background: rgba(0,0,0,0.6); border-radius: 4px; padding: 4px; cursor: pointer; transition: all 0.2s;
+        }
+        .download-icon:hover { color: var(--primary); background: #000; }
+        .download-icon svg { width: 14px; height: 14px; display: block; }
+        .btn-upload-small { 
+            width: 100%; padding: 6px 0; background: #333; border: 1px solid #555;
+            color: #ccc; font-size: 12px; border-radius: 4px; cursor: pointer; 
+            transition: all 0.2s ease; text-align: center; display: block; 
+        }
+        .btn-upload-small:hover { background: var(--primary); border-color: var(--primary); color: #000; font-weight: bold; }
+        .placeholder { grid-column: 1 / -1; padding: 40px; text-align: center; color: #666; font-size: 1em; }
+
+        /* Batch Section */
+        .batch-section {
+            margin-top: 40px; background-color: #222222;
+            border: 1px solid var(--primary); border-radius: 10px; padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 255, 128, 0.05);
+        }
+        .batch-drop-zone {
+            border: 2px dashed #555; border-radius: 8px; padding: 40px;
+            text-align: center; color: #888; cursor: pointer; transition: all 0.3s;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .batch-drop-zone:hover, .batch-drop-zone.drag-over {
+            border-color: var(--primary); background: rgba(0, 255, 128, 0.05); color: #fff;
+        }
+        .batch-icon { font-size: 40px; margin-bottom: 10px; display: block; opacity: 0.7; }
+        .log-console {
+            background: #000; color: var(--primary); font-family: 'Consolas', monospace; font-size: 12px;
+            padding: 15px; border-radius: 6px; margin-top: 15px; max-height: 150px;
+            overflow-y: auto; border: 1px solid #333; display: none; white-space: pre-wrap;
+        }
+        .batch-hint { font-size: 12px; color: #666; margin-top: 15px; border-top: 1px solid #444; padding-top: 10px; }
+
+        /* Status Bar */
+        .status-bar {
+            margin-bottom: 25px; padding: 15px 20px;
+            border-radius: 8px; font-weight: 600; display: none; font-size: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3); border: 1px solid; 
+        }
+        .status-error { background-color: #3d1b1b; border-color: #7b2929; color: #ff8c8c; } 
+        .status-success { background-color: #1b3d2b; border-color: #297b4a; color: #8cffad; } 
+
+        /* Export Button */
+        .btn-download-container {
+            position: relative; width: 100%; display: flex; justify-content: center; margin-top: 40px;
+        }
+        .btn-download { 
+            position: relative;
+            background: linear-gradient(45deg, #00e676, #00b368); 
+            color: #1a1a1a; border: none; overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 255, 128, 0.4); 
+            font-weight: 700; width: 50%; text-align: center; padding: 14px 28px; 
+            border-radius: 30px; cursor: pointer; transition: all 0.3s ease; z-index: 1;
+        }
+        .btn-download:disabled { opacity: 0.5; cursor: not-allowed; background: #333; color: #555; box-shadow: none; }
+        
+        /* Glow Effect for Button */
+        .btn-download::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, #00ff80, #00b368, #00ffd5, #00ff80);
+            background-size: 400%; z-index: -1; opacity: 0; transition: opacity 0.5s;
+            border-radius: 30px;
+        }
+        .btn-download:hover:not(:disabled) {
+            transform: scale(1.02); box-shadow: 0 0 30px rgba(0, 255, 128, 0.8); color: #000;
+        }
+        .btn-download:hover:not(:disabled)::before { opacity: 1; animation: glowing 3s linear infinite; }
+        @keyframes glowing {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Mouse Particles */
+        .particle {
+            position: absolute; pointer-events: none; border-radius: 50%;
+            animation: particle-fly 0.8s ease-out forwards; z-index: 99;
+        }
+        @keyframes particle-fly {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--mx), var(--my)) scale(0); opacity: 0; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; border-left: 1px solid #333; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 5px; border: 2px solid #1a1a1a; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        /* Meta Overlay */
+        .file-meta-overlay {
+            position: absolute; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px); padding: 8px 12px; border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.15); color: #ddd; font-family: Consolas, monospace;
+            font-size: 12px; z-index: 50; display: none; text-align: right; line-height: 1.5; pointer-events: none;
+        }
+        .file-meta-overlay b { color: #fff; }
+        .mem-normal { color: #8cffad; }
+        .mem-warning { color: #ff4d4d !important; font-weight: bold; border-bottom: 1px dashed #ff4d4d; }
+
+        /* --- PART 02 (DIY Studio) Specific Styles --- */
+        .p2-control-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+            margin-top: 30px; display: none; animation: slideUp 0.5s ease-out;
+        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .p2-panel-box {
+            background: #222; border: 1px solid #333; border-radius: 12px; padding: 20px;
+            display: flex; flex-direction: column;
+        }
+        .p2-panel-title { color: #fff; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        
+        .p2-upload-zone {
+            flex: 1; border: 2px dashed #444; border-radius: 8px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.3s; background: rgba(255,255,255,0.02);
+            min-height: 200px;
+        }
+        .p2-upload-zone:hover { border-color: var(--primary); background: rgba(0, 255, 128, 0.05); }
+        .p2-upload-icon { font-size: 32px; margin-bottom: 10px; }
+
+        .p2-glow-controls { display: flex; flex-direction: column; gap: 15px; }
+        .p2-control-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #aaa; }
+        .p2-control-row label { flex: 1; }
+        .p2-control-row input[type="range"] { flex: 2; margin: 0 10px; accent-color: var(--primary); }
+        .p2-val-display { width: 30px; text-align: right; color: var(--primary); font-family: monospace; }
+        
+        .p2-glow-preview-wrapper {
+            margin-top: 15px;
+            background-image: 
+                linear-gradient(45deg, #2a2a2a 25%, transparent 25%), 
+                linear-gradient(-45deg, #2a2a2a 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #2a2a2a 75%), 
+                linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+            background-size: 10px 10px;
+            background-color: #1a1a1a;
+            border: 1px solid #444; border-radius: 8px;
+            height: 120px; display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+        #p2_glowCanvasPreview { max-height: 80%; max-width: 80%; object-fit: contain; }
+
+        .btn-apply {
+            background: #333; color: #fff; border: 1px solid #555;
+            padding: 8px; border-radius: 6px; cursor: pointer; margin-top: 10px;
+            transition: all 0.2s; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; width: 100%;
+        }
+        .btn-apply:hover { background: var(--primary); color: #000; border-color: var(--primary); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div class="main-area">
+    
+    <div class="header-container">
+        <h1 data-key="title">SVGA Toolset Ultimate</h1>
+        <div class="header-meta">
+            <span>V17.0 • Dev: cang</span>
+            <button class="lang-btn" onclick="toggleLanguage()" id="langBtn">切换中文</button>
+        </div>
+    </div>
+
+    <div class="tabs-nav">
+        <button class="tab-btn active" onclick="switchTab(1)">
+            <span class="tab-icon">🛠️</span>
+            <span data-key="tab1">Asset Replacement</span>
+        </button>
+        
+        <button class="tab-btn" onclick="switchTab(2)">
+            <span class="tab-icon">✨</span>
+            <span data-key="tab2">Template DIY</span>
+        </button>
+        
+        <button class="tab-btn" onclick="switchTab(3)">
+            <span class="tab-icon">🚧</span>
+            <span data-key="tab3">Coming Soon...</span>
+        </button>
+    </div>
+
+    <div id="tab-1" class="tab-content active">
+        <input type="file" id="svgaInput" accept=".svga" style="display: none;">
+
+        <h3 style="margin-top:0" data-key="sectionPreview">Animation Preview</h3>
+        
+        <div id="player-wrapper">
+            <div id="drag-overlay" class="drag-overlay-base">
+                <svg fill="currentColor" width="60" height="60" viewBox="0 0 24 24" style="margin-bottom: 15px;"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM10.71 14.29l1.59 1.59V12h1.4v3.88l1.59-1.59.99.99-3 3-3-3 .99-.99z"/></svg>
+                <span data-key="dragTip">Drag & Drop SVGA file (or Click to Load)</span>
+            </div>
+
+            <div id="fileMetaOverlay" class="file-meta-overlay"></div> 
+
+            <div id="playerCanvas" class="canvas-container"></div>
+            <span id="playerStatus" style="color:#ccc; display:none;">Loading...</span>
+        </div>
+
+        <div id="statusBar" class="status-bar"></div>
+        
+        <h3 data-key="sectionBg">Background Color</h3>
+        <div id="color-selector">
+            <span class="color-swatch is-transparent" data-color="transparent" title="Transparent"></span>
+            
+            <span class="color-swatch" data-color="#000000" style="background:#000000" title="Black"></span>
+            <span class="color-swatch" data-color="#FFFFFF" style="background:#FFFFFF" title="White"></span>
+            <span class="color-swatch" data-color="#3D82FF" style="background:#3D82FF" title="Blue"></span>
+            <span class="color-swatch" data-color="#55C464" style="background:#55C464" title="Green"></span>
+            <span class="color-swatch" data-color="#FFDD33" style="background:#FFDD33" title="Yellow"></span>
+            <span class="color-swatch" data-color="#FF4040" style="background:#FF4040" title="Red"></span>
+            <span class="color-swatch" data-color="#F2F2F2" style="background:#F2F2F2" title="Light Gray"></span>
+            <span class="color-swatch" data-color="#E0E0E0" style="background:#E0E0E0" title="Medium Gray"></span>
+        </div>
+
+        <h3 data-key="sectionAssets">Asset List</h3>
+        <div class="assets-list" id="assetsList">
+            <div class="placeholder" data-key="placeholder">Upload an SVGA file to display the asset list here.</div>
+        </div>
+
+        <div class="batch-section">
+            <h3 style="margin-top:0; border:none; color:#00ff80;" data-key="batchTitle">🚀 Batch Frame Replacement</h3>
+            
+            <div class="batch-drop-zone" id="batchDropZone">
+                <span class="batch-icon">📂</span>
+                <div style="font-size: 16px;">
+                    <b data-key="batchDrag">Drag images here to Replace All</b><br>
+                    <span style="font-size:14px; color:#888;" data-key="batchClick">Or <b>Click Here</b> to select folder</span>
+                </div>
+                
+                <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                    <div id="sortOptionsWrapper" style="padding: 8px 15px; background: rgba(0,0,0,0.3); border-radius: 6px; text-align: left; display: inline-block;">
+                        <div style="color: #00ff80; font-size: 12px; margin-bottom: 5px; font-weight:bold;" data-key="sortMode">1. Sorting Mode:</div>
+                        <label style="margin-right: 15px; cursor: pointer; color: #e0e0e0; font-size: 13px;">
+                            <input type="radio" name="sortMode" value="name" checked> <span data-key="sortName">By Name</span>
+                        </label>
+                        <label style="cursor: pointer; color: #e0e0e0; font-size: 13px;">
+                            <input type="radio" name="sortMode" value="timeline"> <span data-key="sortTime">By Playback Order</span>
+                        </label>
+                    </div>
+
+                    <div style="padding: 8px 15px; background: rgba(0,0,0,0.3); border-radius: 6px; text-align: left; display: inline-block;">
+                        <div style="color: #ffcc00; font-size: 12px; margin-bottom: 5px; font-weight:bold;" data-key="optMode">2. Optimization:</div>
+                        <label style="cursor: pointer; color: #e0e0e0; font-size: 13px;" title="Use UPNG algorithm to reduce PNG size significantly">
+                            <input type="checkbox" id="compressToggle" checked> <span data-key="optUPNG">Enable PNG Compression (UPNG)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="batch-hint" style="font-size:12px; color:#666; margin-top:15px;" data-key="batchTip">
+                    <b>Tip:</b> If SVGA plays with wrong frames, try "By Playback Order".
+                </div>
+            </div>
+            
+            <input type="file" id="batchFolderInput" webkitdirectory directory multiple style="display:none">
+            <div class="log-console" id="batchLog"></div>
+        </div>
+
+        <div class="btn-download-container">
+            <button id="downloadBtn" class="btn btn-download" disabled>
+                <svg fill="currentColor" width="20" height="20" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 8px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span data-key="btnExport">Export New File</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="tab-2" class="tab-content">
+        <div style="text-align:center; color:#666; font-size:13px; margin-bottom:30px; font-family:monospace;" data-key="p2Subtitle">
+            Drag Template (.svga) &rarr; Upload Image &rarr; Tweak Glow &rarr; Export
+        </div>
+
+        <div id="p2_player-wrapper" class="player-wrapper-base">
+            <div id="p2_drag-overlay" class="drag-overlay-base">
+                <span data-key="p2DragTip">Drag & Drop SVGA Template Here</span>
+            </div>
+            <div id="p2_playerCanvas" class="canvas-container"></div>
+        </div>
+        <input type="file" id="p2_svgaInput" accept=".svga" style="display:none;">
+
+        <div id="p2_statusBar" class="status-bar"></div>
+
+        <div class="p2-control-grid" id="p2_controlGrid">
+            
+            <div class="p2-panel-box">
+                <div class="p2-panel-title">
+                    <span data-key="p2ImgSource">🖼️ Source Image</span>
+                </div>
+                <div class="p2-upload-zone" id="p2_imgUploadZone">
+                    <span class="p2-upload-icon">📂</span>
+                    <div><b data-key="p2ClickDrag">Click or Drag Image</b></div>
+                    <div style="font-size:11px; color:#888; margin-top:5px;" data-key="p2GenInfo">Generates: main + highlight + glow</div>
+                </div>
+                <input type="file" id="p2_imgInput" accept="image/*" style="display:none;">
+                
+                <div id="p2_assetStatus" style="margin-top:15px; font-size:11px; color:#666; line-height:1.5;">
+                    <span data-key="p2KeysFound">Target Keys found:</span><br>
+                    <span id="p2_keyMain" style="color:#444">❌ main</span> • 
+                    <span id="p2_keyHighlight" style="color:#444">❌ highlight</span> • 
+                    <span id="p2_keyGlow" style="color:#444">❌ glow</span>
+                </div>
+            </div>
+
+            <div class="p2-panel-box">
+                <div class="p2-panel-title">
+                    <span data-key="p2GlowTuner">✨ Outer Glow Tuner</span>
+                    <input type="color" id="p2_glowColor" value="#FFD700" style="background:none; border:none; width:30px; height:30px; cursor:pointer;" title="Glow Color">
+                </div>
+                
+                <div class="p2-glow-controls">
+                    <div class="p2-control-row">
+                        <label data-key="p2Radius">Radius</label>
+                        <input type="range" id="p2_glowRadius" min="0" max="50" value="15">
+                        <span class="p2-val-display" id="p2_valRadius">15</span>
+                    </div>
+                    <div class="p2-control-row">
+                        <label data-key="p2Intensity">Intensity</label>
+                        <input type="range" id="p2_glowIntensity" min="0" max="5" step="0.1" value="1.5">
+                        <span class="p2-val-display" id="p2_valIntensity">1.5</span>
+                    </div>
+                </div>
+
+                <div class="p2-glow-preview-wrapper">
+                    <canvas id="p2_glowCanvasPreview"></canvas>
+                    <div style="position:absolute; font-size:10px; color:#444; pointer-events:none;" data-key="p2GlowLayer">Glow Layer Only</div>
+                </div>
+
+                <button class="btn-apply" id="p2_btnApplyGlow" data-key="p2BtnUpdate">⚡ Update Scene</button>
+            </div>
+        </div>
+
+        <div class="btn-download-container">
+            <button id="p2_downloadBtn" class="btn btn-download" disabled>
+                <span data-key="p2BtnExport">Export Remixed SVGA</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="tab-3" class="tab-content">
+        <div style="padding: 100px; text-align: center; color: #555;">
+            <div style="font-size: 40px; margin-bottom: 20px;">🚧</div>
+            <h2 data-key="tab3">Feature Under Development...</h2>
+            <p>More cool tools coming soon!</p>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/upng-js@2.1.0/UPNG.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svgaplayerweb@2.3.1/build/svga.min.js"></script>
+
+<script>
+    // --- 1. Internationalization (Merged & Expanded) ---
+    const i18n = {
+        en: {
+            title: "SVGA Toolset Ultimate",
+            tab1: "Asset Replacement",
+            tab2: "Template DIY",
+            tab3: "Coming Soon...",
+            // Part 1 Keys
+            sectionPreview: "Animation Preview",
+            dragTip: "Drag & Drop SVGA file (or Click to Load)",
+            sectionBg: "Background Color",
+            sectionAssets: "Asset List",
+            placeholder: "Upload an SVGA file to display the asset list here.",
+            batchTitle: "🚀 Batch Frame Replacement",
+            batchDrag: "Drag images here to Replace All",
+            batchClick: "Or <b>Click Here</b> to select folder",
+            sortMode: "1. Sorting Mode:",
+            sortName: "By Name",
+            sortTime: "By Playback Order",
+            optMode: "2. Optimization:",
+            optUPNG: "Enable PNG Compression (UPNG)",
+            batchTip: "<b>Tip:</b> If SVGA plays with wrong frames, try \"By Playback Order\".",
+            btnExport: "Export New File",
+            statusReady: "Ready. Drag & Drop SVGA file to begin.",
+            statusError: "❌ File format error. Please drop a .svga file.",
+            // Part 2 Keys (New)
+            p2Subtitle: "Drag Template (.svga) &rarr; Upload Image &rarr; Tweak Glow &rarr; Export",
+            p2DragTip: "Drag & Drop SVGA Template Here",
+            p2ImgSource: "🖼️ Source Image",
+            p2ClickDrag: "Click or Drag Image",
+            p2GenInfo: "Generates: main + highlight + glow",
+            p2KeysFound: "Target Keys found:",
+            p2GlowTuner: "✨ Outer Glow Tuner",
+            p2Radius: "Radius",
+            p2Intensity: "Intensity",
+            p2GlowLayer: "Glow Layer Only",
+            p2BtnUpdate: "⚡ Update Scene",
+            p2BtnExport: "Export Remixed SVGA",
+            p2StatusLoad: "Template Loaded!",
+            p2StatusAsset: "Assets Generated & Applied!",
+            p2StatusGlow: "Glow Updated in Scene"
+        },
+        zh: {
+            title: "SVGA 综合工具箱",
+            tab1: "01 素材替换",
+            tab2: "02 模板 DIY",
+            tab3: "03 功能开发中...",
+            // Part 1 Keys
+            sectionPreview: "动画预览",
+            dragTip: "拖拽 SVGA 文件到此处 (或点击上传)",
+            sectionBg: "背景颜色",
+            sectionAssets: "资源列表",
+            placeholder: "上传 SVGA 文件后将在此处显示资源列表。",
+            batchTitle: "🚀 批量帧替换",
+            batchDrag: "拖入图片进行批量替换",
+            batchClick: "或者 <b>点击此处</b> 选择文件夹",
+            sortMode: "1. 排序模式:",
+            sortName: "按文件名",
+            sortTime: "按播放顺序",
+            optMode: "2. 压缩优化:",
+            optUPNG: "开启 PNG 压缩 (UPNG算法)",
+            batchTip: "<b>提示:</b> 如果替换后图片顺序错乱，请尝试“按播放顺序”。",
+            btnExport: "导出新文件",
+            statusReady: "就绪。请拖入 SVGA 文件开始。",
+            statusError: "❌ 文件格式错误。请拖入 .svga 文件。",
+            // Part 2 Keys (New)
+            p2Subtitle: "拖入动画模板 (.svga) &rarr; 上传图片 &rarr; 调整发光 &rarr; 导出",
+            p2DragTip: "拖拽 SVGA 模板到此处",
+            p2ImgSource: "🖼️ 源图片",
+            p2ClickDrag: "点击或拖拽上传图片",
+            p2GenInfo: "自动生成: 原图 + 高光 + 外发光",
+            p2KeysFound: "检测到目标 Key:",
+            p2GlowTuner: "✨ 外发光调节器",
+            p2Radius: "扩散半径",
+            p2Intensity: "发光强度",
+            p2GlowLayer: "仅发光层预览",
+            p2BtnUpdate: "⚡ 更新场景",
+            p2BtnExport: "导出 DIY 后的 SVGA",
+            p2StatusLoad: "模板已加载!",
+            p2StatusAsset: "资源已生成并应用!",
+            p2StatusGlow: "场景发光已更新"
+        }
+    };
+
+    let curLang = 'en';
+
+    function toggleLanguage() {
+        curLang = curLang === 'en' ? 'zh' : 'en';
+        document.getElementById('langBtn').innerText = curLang === 'en' ? '切换中文' : 'Switch to EN';
+        
+        // Update all elements with data-key
+        document.querySelectorAll('[data-key]').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if(i18n[curLang][key]) {
+                el.innerHTML = i18n[curLang][key];
+            }
+        });
+        
+        // Status update based on active tab would be nice, but simple fallback:
+        if(!currentMovieData) setStatus('success', i18n[curLang].statusReady);
+    }
+
+    // --- Tab Logic ---
+    window.switchTab = (tabIndex) => {
+        // Toggle Buttons
+        document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+            if (idx + 1 === tabIndex) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+        // Toggle Content
+        document.querySelectorAll('.tab-content').forEach((div, idx) => {
+            if (idx + 1 === tabIndex) div.classList.add('active');
+            else div.classList.remove('active');
+        });
+    };
+
+    // --- Shared Protobuf Definition ---
+    const officialProtoDefinition = `
+    syntax = "proto3";
+    package com.opensource.svga;
+    message MovieParams { float viewBoxWidth = 1; float viewBoxHeight = 2; int32 fps = 3; int32 frames = 4; }
+    message Rect { float x = 1; float y = 2; float width = 3; float height = 4; }
+    message Transform { float a = 1; float b = 2; float c = 3; float d = 4; float tx = 5; float ty = 6; }
+    message Point { float x = 1; float y = 2; }
+    message Layout { float x = 1; float y = 2; float width = 3; float height = 4; }
+    message ShapeEntity { enum ShapeType { SHAPE = 0; RECT = 1; ROUNDED_RECT = 2; ELLIPSE = 3; POLYGON = 4; TEXT = 5; } ShapeType type = 1; string args = 2; ShapeStyle styles = 3; Transform transform = 4; }
+    message ShapeStyle { float fillR = 1; float fillG = 2; float fillB = 3; float fillA = 4; float strokeR = 5; float strokeG = 6; float strokeB = 7; float strokeA = 8; float strokeWidth = 9; float miterLimit = 10; repeated float lineDash = 11; int32 lineCap = 12; int32 lineJoin = 13; }
+    message FrameEntity { float alpha = 1; Layout layout = 2; Transform transform = 3; string clipPath = 4; repeated ShapeEntity shapes = 5; repeated string events = 6; repeated string filters = 7; }
+    message SpriteEntity { string imageKey = 1; repeated FrameEntity frames = 2; string zPosition = 3; repeated string events = 4; }
+    message AudioEntity { string audioKey = 1; int32 startFrame = 2; int32 endFrame = 3; int32 startTime = 4; int32 totalTime = 5; }
+    message MovieEntity { string version = 1; MovieParams params = 2; map<string, bytes> images = 3; repeated SpriteEntity sprites = 4; repeated AudioEntity audios = 5; }
+    `;
+
+    // Global Proto Objects
+    let SharedMovieEntity = null; // Shared Type Definition
+    let SharedParser = null;      // Shared Parser
+
+    // ============================================
+    // PART 01 Logic (Renamed vars slightly to avoid collision)
+    // ============================================
+    let currentMovieData = null; 
+    let player = null; // Part 1 Player
+    const objectUrls = {};
+
+    function setStatus(type, msg) {
+        const el = document.getElementById('statusBar');
+        el.style.display = 'block';
+        el.className = `status-bar status-${type}`;
+        el.innerHTML = msg;
+    }
+
+    // ============================================
+    // PART 02 Logic (Variables prefixed with p2_)
+    // ============================================
+    let p2_currentData = null;
+    let p2_player = null;
+    let p2_currentRawImage = null;
+
+    function p2_setStatus(type, msg) {
+        const el = document.getElementById('p2_statusBar');
+        el.style.display = 'block';
+        el.className = `status-bar status-${type}`;
+        el.innerHTML = msg;
+        setTimeout(() => { if(type==='success') el.style.display = 'none'; }, 3000);
+    }
+
+    // --- Initialization ---
+    window.onload = () => {
+        try {
+            // Shared Init
+            const parsed = protobuf.parse(officialProtoDefinition, { keepCase: true });
+            SharedMovieEntity = parsed.root.lookupType("com.opensource.svga.MovieEntity");
+            SharedParser = new SVGA.Parser();
+
+            // --- Init Part 01 ---
+            initPart01();
+            
+            // --- Init Part 02 ---
+            initPart02();
+	// 为所有 Tab 按钮添加鼠标火花粒子特效
+            document.querySelectorAll('.tab-btn').forEach(btn => setupExportButtonParticles(btn));
+
+            console.log("System initialized.");
+        } catch (e) {
+            console.error("Init failed:", e);
+        }
+    };
+
+    // ============================================
+    // PART 01 FUNCTIONS
+    // ============================================
+    function initPart01() {
+        // Style Helper for Part 1 Wrapper
+        document.getElementById('player-wrapper').classList.add('player-wrapper-base');
+        player = new SVGA.Player('#playerCanvas');
+        player.setContentMode("AspectFit");
+        player.loops = 0;
+
+        // Color Selector
+        document.querySelectorAll('.color-swatch').forEach(swatch => {
+            swatch.addEventListener('click', (e) => {
+                const color = e.target.getAttribute('data-color');
+                const wrapper = document.getElementById('player-wrapper');
+                const canvas = document.getElementById('playerCanvas');
+                if (color === 'transparent') {
+                    wrapper.classList.add('bg-transparent-pattern');
+                    canvas.style.backgroundColor = 'transparent';
+                } else {
+                    wrapper.classList.remove('bg-transparent-pattern');
+                    canvas.style.backgroundColor = color; 
+                }
+            });
+        });
+
+        // Drop Zone
+        const dropArea = document.getElementById('player-wrapper');
+        const fileInput = document.getElementById('svgaInput');
+
+        dropArea.onclick = (e) => { if(e.target.tagName !== 'CANVAS') fileInput.click(); };
+        dropArea.addEventListener('dragover', (e) => { e.preventDefault(); document.getElementById('drag-overlay').classList.add('drag-over'); });
+        dropArea.addEventListener('dragleave', (e) => { document.getElementById('drag-overlay').classList.remove('drag-over'); });
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            document.getElementById('drag-overlay').classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file) loadFile(file);
+        });
+        fileInput.addEventListener('change', (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+        // Export Button Particles
+        setupExportButtonParticles(document.getElementById('downloadBtn'));
+        
+        // Batch
+        setupBatchEventListeners();
+    }
+
+    async function loadFile(file) {
+        if(!file || !file.name.toLowerCase().endsWith('.svga')) {
+            setStatus('error', i18n[curLang].statusError);
+            return;
+        }
+        document.getElementById('downloadBtn').disabled = true;
+        document.getElementById('assetsList').innerHTML = `<div class="placeholder">Parsing...</div>`;
+        document.getElementById('drag-overlay').classList.add('hidden');
+        document.getElementById('playerStatus').style.display = 'block';
+        
+        let overlay = document.getElementById('fileMetaOverlay');
+        overlay.style.display = 'none';
+        
+        document.getElementById('playerCanvas').innerHTML = ''; 
+        if (player) { player.stopAnimation(); player.clear(); }
+        player = new SVGA.Player('#playerCanvas'); 
+        player.setContentMode("AspectFit"); 
+
+        try {
+            const buffer = await file.arrayBuffer();
+            let inflatedData;
+            try { inflatedData = pako.inflate(new Uint8Array(buffer)); } 
+            catch (err) { inflatedData = new Uint8Array(buffer); }
+
+            currentMovieData = SharedMovieEntity.decode(inflatedData);
+            
+            const w = currentMovieData.params.viewBoxWidth;
+            const h = currentMovieData.params.viewBoxHeight;
+            const fileSizeKB = (file.size / 1024).toFixed(1);
+            
+            // Calc RAM
+            let totalMemBytes = w * h * 4; 
+            const imageKeys = Object.keys(currentMovieData.images || {});
+            const dimensionPromises = imageKeys.map(key => getImageDimensions(currentMovieData.images[key]));
+            const dimensions = await Promise.all(dimensionPromises);
+            
+            dimensions.forEach(dim => {
+                if (dim.width > 0 && dim.height > 0) totalMemBytes += (dim.width * dim.height * 4);
+            });
+
+            const memMB = (totalMemBytes / 1024 / 1024).toFixed(2);
+            let memHtml = `<span class="mem-normal">RAM: <b>${memMB} MB</b></span>`;
+            if (parseFloat(memMB) > 8.0) memHtml = `<span class="mem-warning">⚠️ High RAM: ${memMB} MB</span>`;
+
+            overlay.innerHTML = `<span>File: <b>${file.name}</b></span><span>Size: <b>${fileSizeKB} KB</b></span><span>Dim: <b>${w} x ${h}</b></span>${memHtml}`;
+            overlay.style.display = 'block';
+
+            setStatus('success', `Parsed: ${imageKeys.length} assets`);
+            renderAssetsList(currentMovieData.images);
+            tryDynamicPreview(); 
+
+            document.getElementById('downloadBtn').disabled = false;
+        } catch (err) {
+            setStatus('error', "Parse error: " + err.message);
+            document.getElementById('drag-overlay').classList.remove('hidden');
+        }
+    }
+
+    // Part 1 Preview
+    function tryDynamicPreview() {
+        if (!currentMovieData || !player) return; 
+        player.stopAnimation(); player.clear(); 
+        
+        const { viewBoxWidth, viewBoxHeight } = currentMovieData.params;
+        const playerCanvas = document.getElementById('playerCanvas');
+        playerCanvas.style.width = `${viewBoxWidth}px`;
+        playerCanvas.style.height = `${viewBoxHeight}px`;
+
+        try {
+            const blob = packSVGA(currentMovieData);
+            const url = URL.createObjectURL(blob);
+            SharedParser.load(url, (videoItem) => {
+                if (player) {
+                    player.setVideoItem(videoItem);
+                    player.startAnimation(); 
+                    document.getElementById('playerStatus').style.display = 'none';
+                }
+                URL.revokeObjectURL(url); 
+            });
+        } catch (e) { console.error("Preview error:", e); }
+    }
+
+    // Helper: Pack
+    function packSVGA(dataObj) {
+        const message = SharedMovieEntity.create(dataObj);
+        const encodedBuffer = SharedMovieEntity.encode(message).finish();
+        const deflatedData = pako.deflate(encodedBuffer);
+        return new Blob([deflatedData], { type: "application/octet-stream" });
+    }
+
+    // Helper: Image Dims
+    async function getImageDimensions(imgBytes) {
+        return new Promise(resolve => {
+            if (!imgBytes || imgBytes.length === 0) return resolve({ width: 0, height: 0 });
+            const blob = new Blob([imgBytes], { type: 'image/png' }); 
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.width, height: img.height }); };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve({ width: 0, height: 0 }); };
+            img.src = url;
+        });
+    }
+
+    // Part 1 Asset List
+    function renderAssetsList(imagesMap) {
+        const container = document.getElementById('assetsList');
+        container.innerHTML = '';
+        if (!imagesMap || Object.keys(imagesMap).length === 0) {
+            container.innerHTML = `<div class="placeholder">${i18n[curLang].placeholder}</div>`;
+            return;
+        }
+        const keys = Object.keys(imagesMap).sort(new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'}).compare);
+        keys.forEach(key => {
+            const imgBytes = imagesMap[key];
+            const blob = new Blob([imgBytes], { type: 'image/png' });
+            const imgUrl = URL.createObjectURL(blob);
+            objectUrls[key] = imgUrl; 
+            
+            const div = document.createElement('div');
+            div.className = 'asset-item';
+            div.innerHTML = `
+                <div class="asset-preview-wrapper">
+                    <img src="${imgUrl}" class="asset-preview">
+                    <div class="download-icon" onclick="downloadAsset(event, '${key}')" title="Download"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></div>
+                </div>
+                <div class="asset-info"><div class="asset-key" title="${key}">${key}</div><div class="asset-meta">${(imgBytes.length / 1024).toFixed(1)} KB</div></div>
+                <label class="btn-upload-small">Replace<input type="file" style="display:none" accept="image/*" onchange="handleReplace('${key}', this)"></label>
+            `;
+            container.appendChild(div);
+            getImageDimensions(imgBytes).then(dim => { div.querySelector('.asset-meta').innerText += ` | ${dim.width}x${dim.height}`; });
+        });
+    }
+
+    window.downloadAsset = (event, key) => {
+        event.preventDefault(); 
+        const imgBytes = currentMovieData.images[key];
+        const blob = new Blob([imgBytes], { type: 'application/octet-stream' }); 
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `${key}.png`; 
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); 
+    };
+
+    window.handleReplace = async (key, inputElement) => {
+        const file = inputElement.files[0];
+        if (!file) return;
+        const buffer = await file.arrayBuffer();
+        const newBytes = new Uint8Array(buffer); 
+        currentMovieData.images[key] = newBytes;
+        
+        // Update UI
+        const blob = new Blob([newBytes], { type: 'image/png' });
+        if (objectUrls[key]) URL.revokeObjectURL(objectUrls[key]);
+        const newUrl = URL.createObjectURL(blob);
+        objectUrls[key] = newUrl; 
+        const item = inputElement.closest('.asset-item');
+        item.querySelector('.asset-preview').src = newUrl;
+        
+        setStatus('success', `✅ Replaced "${key}"`);
+        tryDynamicPreview(); 
+    };
+
+    // Part 1 Export
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+        try {
+            const blob = packSVGA(currentMovieData);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `svga_remix_${new Date().getTime()}.svga`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); 
+            setStatus('success', "✅ File exported successfully!");
+        } catch(e) {
+            setStatus('error', "❌ Export failed: " + e.message);
+        }
+    });
+
+    // Part 1 Batch Logic
+    function setupBatchEventListeners() {
+        const zone = document.getElementById('batchDropZone');
+        const folderInput = document.getElementById('batchFolderInput');
+        const inputs = zone.querySelectorAll('input, label');
+        inputs.forEach(el => { el.addEventListener('click', (e) => { e.stopPropagation(); }); });
+        zone.onclick = (e) => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return; folderInput.value = ''; folderInput.click(); };
+        folderInput.onchange = (e) => { const files = Array.from(e.target.files); if(files.length > 0) processFileList(files); };
+        zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('drag-over'); };
+        zone.ondragleave = () => { zone.classList.remove('drag-over'); };
+        zone.ondrop = (e) => {
+            e.preventDefault(); zone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length > 0) processFileList(files);
+        };
+    }
+
+    async function processFileList(fileList) {
+        if (!currentMovieData) { setStatus('error', i18n[curLang].statusError); return; }
+        const logEl = document.getElementById('batchLog');
+        logEl.style.display = 'block';
+        logEl.innerText = "> Analyzing input...\n";
+        
+        const validImages = fileList.filter(f => f.name.match(/\.(png|jpg|jpeg)$/i));
+        const naturalSort = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'}).compare;
+        validImages.sort((a, b) => naturalSort(a.name, b.name));
+
+        const sortMode = document.querySelector('input[name="sortMode"]:checked').value;
+        let svgaKeys;
+        if (sortMode === 'timeline') svgaKeys = getKeysSortedByTimeline(currentMovieData);
+        else svgaKeys = Object.keys(currentMovieData.images).sort(naturalSort);
+
+        const count = Math.min(svgaKeys.length, validImages.length);
+        for (let i = 0; i < count; i++) {
+            const key = svgaKeys[i];
+            const file = validImages[i];
+            await new Promise(r => setTimeout(r, 10)); // UI Freezing prevention
+            logEl.innerText += `> [${i+1}/${count}] Compressing: ${file.name}...\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+
+            const compressedBytes = await compressImageAsset(file);
+            currentMovieData.images[key] = compressedBytes;
+        }
+        logEl.innerText += `----------------------------------------\nDone!\n`;
+        setStatus('success', `Batch replaced ${count} images!`);
+        renderAssetsList(currentMovieData.images); 
+        tryDynamicPreview(); 
+    }
+
+    // Helper: Timeline Sort
+    function getKeysSortedByTimeline(movieData) {
+        const appearanceMap = {}; 
+        const imageKeys = Object.keys(movieData.images || {});
+        imageKeys.forEach(key => appearanceMap[key] = Infinity);
+        (movieData.sprites || []).forEach(sprite => {
+            const key = sprite.imageKey;
+            if (!key || !movieData.images[key]) return;
+            (sprite.frames || []).forEach((frame, frameIndex) => {
+                if (frame.alpha > 0 && frameIndex < appearanceMap[key]) appearanceMap[key] = frameIndex;
+            });
+        });
+        return imageKeys.sort((a, b) => {
+            const frameA = appearanceMap[a]; const frameB = appearanceMap[b];
+            if (frameA === frameB) return a.localeCompare(b);
+            return frameA - frameB;
+        });
+    }
+
+    // Helper: Compression
+    function compressImageAsset(file) {
+        return new Promise((resolve) => {
+            const toggle = document.getElementById('compressToggle');
+            const shouldCompress = toggle ? toggle.checked : false;
+            if (!shouldCompress || typeof UPNG === 'undefined') {
+                file.arrayBuffer().then(buf => resolve(new Uint8Array(buf)));
+                return;
+            }
+            const img = new Image(); const url = URL.createObjectURL(file);
+            img.onload = () => {
+                const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
+                const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0);
+                try {
+                    const imgData = ctx.getImageData(0, 0, img.width, img.height);
+                    const compressedBuffer = UPNG.encode([imgData.data.buffer], img.width, img.height, 256);
+                    resolve(new Uint8Array(compressedBuffer));
+                } catch (e) { file.arrayBuffer().then(buf => resolve(new Uint8Array(buf))); }
+                URL.revokeObjectURL(url);
+            };
+            img.onerror = () => { file.arrayBuffer().then(buf => resolve(new Uint8Array(buf))); };
+            img.src = url;
+        });
+    }
+
+    // ============================================
+    // PART 02 FUNCTIONS (Variables prefixed with p2_)
+    // ============================================
+    function initPart02() {
+        p2_player = new SVGA.Player('#p2_playerCanvas');
+        p2_player.setContentMode("AspectFit");
+        
+        setupP2SVGALoader();
+        setupP2ImageLoader();
+        setupP2GlowControls();
+        
+        document.getElementById('p2_downloadBtn').onclick = p2_Export;
+        // P2 Export Button Particle
+        setupExportButtonParticles(document.getElementById('p2_downloadBtn'));
+    }
+
+    function setupP2SVGALoader() {
+        const area = document.getElementById('p2_player-wrapper');
+        const input = document.getElementById('p2_svgaInput');
+        area.onclick = (e) => { if(e.target.tagName !== 'CANVAS') input.click(); };
+        input.onchange = (e) => p2_loadSVGA(e.target.files[0]);
+        area.ondragover = (e) => { e.preventDefault(); area.classList.add('active'); };
+        area.ondragleave = () => area.classList.remove('active');
+        area.ondrop = (e) => {
+            e.preventDefault(); area.classList.remove('active');
+            p2_loadSVGA(e.dataTransfer.files[0]);
+        };
+    }
+
+    async function p2_loadSVGA(file) {
+        if(!file || !file.name.endsWith('.svga')) return p2_setStatus('error', i18n[curLang].statusError);
+        try {
+            const buffer = await file.arrayBuffer();
+            let data;
+            try { data = pako.inflate(new Uint8Array(buffer)); } catch { data = new Uint8Array(buffer); }
+            p2_currentData = SharedMovieEntity.decode(data);
+            
+            const { viewBoxWidth, viewBoxHeight } = p2_currentData.params;
+            const canvas = document.getElementById('p2_playerCanvas');
+            canvas.style.width = `${viewBoxWidth}px`;
+            canvas.style.height = `${viewBoxHeight}px`;
+
+            const keys = Object.keys(p2_currentData.images);
+            const hasMain = keys.some(k => k.includes('main') || k.includes('mian'));
+            const hasHi = keys.some(k => k.includes('highlight'));
+            const hasGlow = keys.some(k => k.includes('glow'));
+
+            document.getElementById('p2_keyMain').style.color = hasMain ? '#00ff80' : '#444';
+            document.getElementById('p2_keyMain').innerText = hasMain ? '✔ main' : '❌ main';
+            document.getElementById('p2_keyHighlight').style.color = hasHi ? '#00ff80' : '#444';
+            document.getElementById('p2_keyHighlight').innerText = hasHi ? '✔ highlight' : '❌ highlight';
+            document.getElementById('p2_keyGlow').style.color = hasGlow ? '#00ff80' : '#444';
+            document.getElementById('p2_keyGlow').innerText = hasGlow ? '✔ glow' : '❌ glow';
+
+            document.getElementById('p2_drag-overlay').style.display = 'none';
+            document.getElementById('p2_controlGrid').style.display = 'grid';
+            document.getElementById('p2_downloadBtn').disabled = false;
+            
+            p2_refreshPlayer();
+            p2_setStatus('success', i18n[curLang].p2StatusLoad);
+        } catch(e) { p2_setStatus('error', 'Parse error: ' + e.message); }
+    }
+
+    function setupP2ImageLoader() {
+        const zone = document.getElementById('p2_imgUploadZone');
+        const input = document.getElementById('p2_imgInput');
+        zone.onclick = () => input.click();
+        input.onchange = (e) => p2_processImage(e.target.files[0]);
+        zone.ondragover = (e) => { e.preventDefault(); zone.style.borderColor = '#00ff80'; };
+        zone.ondragleave = () => { zone.style.borderColor = '#444'; };
+        zone.ondrop = (e) => { e.preventDefault(); p2_processImage(e.dataTransfer.files[0]); };
+    }
+
+    async function p2_processImage(file) {
+        if(!file || !file.type.startsWith('image/')) return;
+        p2_currentRawImage = await p2_loadImage(URL.createObjectURL(file));
+        await p2_generateAllAssets();
+        p2_setStatus('success', i18n[curLang].p2StatusAsset);
+    }
+
+    async function p2_generateAllAssets() {
+        if(!p2_currentData || !p2_currentRawImage) return;
+        const rawBytes = await p2_imgToBytes(p2_currentRawImage);
+        p2_replaceAsset(['main', 'mian'], rawBytes);
+        const hiBytes = await p2_generateOverlay(p2_currentRawImage);
+        p2_replaceAsset(['main_highlight', 'mian_highlight', 'highlight'], hiBytes);
+        await p2_updateGlowFromControls(); 
+        p2_refreshPlayer();
+    }
+
+    function setupP2GlowControls() {
+        const radiusEl = document.getElementById('p2_glowRadius');
+        const intensEl = document.getElementById('p2_glowIntensity');
+        const colorEl = document.getElementById('p2_glowColor');
+        const preview = document.getElementById('p2_glowCanvasPreview');
+
+        radiusEl.oninput = (e) => document.getElementById('p2_valRadius').innerText = e.target.value;
+        intensEl.oninput = (e) => document.getElementById('p2_valIntensity').innerText = e.target.value;
+
+        const updatePreview = () => {
+            if(!p2_currentRawImage) return;
+            p2_renderGlowToCanvas(preview, p2_currentRawImage, colorEl.value, parseInt(radiusEl.value), parseFloat(intensEl.value));
+        };
+        colorEl.oninput = updatePreview;
+        radiusEl.oninput = updatePreview;
+        intensEl.oninput = updatePreview;
+
+        document.getElementById('p2_btnApplyGlow').onclick = async () => {
+            if(!p2_currentRawImage) return p2_setStatus('error', 'Upload an image first');
+            await p2_updateGlowFromControls();
+            p2_refreshPlayer();
+            p2_setStatus('success', i18n[curLang].p2StatusGlow);
+        };
+    }
+
+    async function p2_updateGlowFromControls() {
+        if(!p2_currentRawImage) return;
+        const tempCanvas = document.createElement('canvas');
+        const r = parseInt(document.getElementById('p2_glowRadius').value);
+        const i = parseFloat(document.getElementById('p2_glowIntensity').value);
+        const c = document.getElementById('p2_glowColor').value;
+        p2_renderGlowToCanvas(tempCanvas, p2_currentRawImage, c, r, i);
+        const glowBytes = await p2_canvasToBytes(tempCanvas);
+        p2_replaceAsset(['main_glow', 'mian_glow', 'glow'], glowBytes);
+    }
+
+    function p2_renderGlowToCanvas(canvas, img, color, radius, intensity) {
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width; canvas.height = img.height;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.shadowColor = color; ctx.shadowBlur = radius; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+        const passes = Math.ceil(intensity);
+        const remainder = intensity - Math.floor(intensity);
+        for (let j = 0; j < passes; j++) {
+            ctx.globalAlpha = (j === passes - 1 && remainder > 0) ? remainder : 1.0;
+            ctx.drawImage(img, 0, 0);
+        }
+        ctx.globalAlpha = 1.0;
+    }
+
+    function p2_generateOverlay(img) {
+        return new Promise(resolve => {
+            const cvs = document.createElement('canvas');
+            cvs.width = img.width; cvs.height = img.height;
+            const ctx = cvs.getContext('2d'); ctx.drawImage(img, 0, 0);
+            const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+            const d = imgData.data;
+            for(let i=0; i<d.length; i+=4) {
+                if(d[i+3] === 0) continue;
+                d[i] = (d[i] < 128) ? (2 * d[i]) : 255;
+                d[i+1] = (d[i+1] < 128) ? (2 * d[i+1]) : 255;
+                d[i+2] = (d[i+2] < 128) ? (2 * d[i+2]) : 255;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            cvs.toBlob(b => b.arrayBuffer().then(buf => resolve(new Uint8Array(buf))));
+        });
+    }
+
+    function p2_replaceAsset(possibleKeys, bytes) {
+        const keys = Object.keys(p2_currentData.images);
+        const target = keys.find(k => possibleKeys.some(pk => k === pk || k.includes(pk))); 
+        if (target) p2_currentData.images[target] = bytes;
+    }
+
+    function p2_refreshPlayer() {
+        p2_player.stopAnimation(); p2_player.clear();
+        const blob = packSVGA(p2_currentData);
+        const url = URL.createObjectURL(blob);
+        SharedParser.load(url, (v) => { p2_player.setVideoItem(v); p2_player.startAnimation(); });
+    }
+
+    function p2_Export() {
+        const blob = packSVGA(p2_currentData);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = `glow_remix_${Date.now()}.svga`;
+        a.click();
+    }
+
+    // P2 Helpers
+    function p2_loadImage(src) { return new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.src = src; }); }
+    function p2_imgToBytes(img) { const cvs = document.createElement('canvas'); cvs.width = img.width; cvs.height = img.height; cvs.getContext('2d').drawImage(img, 0, 0); return p2_canvasToBytes(cvs); }
+    function p2_canvasToBytes(cvs) { return new Promise(r => cvs.toBlob(b => b.arrayBuffer().then(buf => r(new Uint8Array(buf))))); }
+
+    // --- Common Particle Effect (Reused) ---
+    function setupExportButtonParticles(btn) {
+        btn.addEventListener('mousemove', function(e) {
+            if (btn.disabled) return;
+            if (Math.random() > 0.3) return;
+            const rect = btn.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const particle = document.createElement('div');
+            particle.classList.add('particle');
+            const colors = ['#00ff80', '#ffffff', '#ffff00', '#00ccff'];
+            particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            particle.style.left = x + 'px'; particle.style.top = y + 'px';
+            const size = Math.random() * 4 + 2 + 'px';
+            particle.style.width = size; particle.style.height = size;
+            particle.style.setProperty('--mx', (Math.random() - 0.5) * 100 + 'px');
+            particle.style.setProperty('--my', (Math.random() - 0.5) * 100 + 'px');
+            btn.appendChild(particle);
+            setTimeout(() => { particle.remove(); }, 800);
+        });
+    }
+
+</script>
+</body>
+</html>
