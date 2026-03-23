@@ -15,10 +15,12 @@
         #ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('https://i.imgur.com/W2LQgSy.png'); background-size: 100% 100%; z-index: 5; pointer-events: none; }
         #gameCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
 
-        /* 开始页与排行榜页面通用样式 */
+        /* 全局通用遮罩样式 */
         .full-screen-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; backdrop-filter: blur(8px); transition: opacity 0.5s; }
-        .btn { padding: 15px 40px; font-size: 20px; font-weight: bold; color: #fff; border: none; border-radius: 30px; cursor: pointer; margin: 10px; width: 280px; text-align: center; }
-        #start-btn { background: linear-gradient(45deg, #2ecc71, #27ae60); box-shadow: 0 10px 20px rgba(46, 204, 113, 0.4); animation: bounce 1s infinite alternate; transition: all 0.3s; }
+        .btn { padding: 15px 40px; font-size: 18px; font-weight: bold; color: #fff; border: none; border-radius: 30px; cursor: pointer; margin: 10px; width: 280px; text-align: center; transition: transform 0.1s; }
+        .btn:active { transform: scale(0.95); }
+        #start-btn { background: linear-gradient(45deg, #2ecc71, #27ae60); box-shadow: 0 10px 20px rgba(46, 204, 113, 0.4); animation: bounce 1s infinite alternate; }
+        #play-custom-btn { background: linear-gradient(45deg, #9b59b6, #8e44ad); box-shadow: 0 10px 20px rgba(155, 89, 182, 0.4); }
         #record-btn { background: linear-gradient(45deg, #e74c3c, #c0392b); box-shadow: 0 10px 20px rgba(231, 76, 60, 0.4); }
         @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-5px); } }
 
@@ -41,12 +43,12 @@
         .note.hit { animation: hitSplash 0.3s ease-out forwards; }
         @keyframes hitSplash { 0% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; } }
 
-        /* 60s 倒计时条 (已移至轨道内部与底部) */
+        /* 60s 倒计时条 */
         #progress-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: rgba(0, 0, 0, 0.6); display: none; }
         #progress-bar { height: 100%; width: 100%; background: #f1c40f; transform-origin: left; transition: width 0.1s linear; box-shadow: 0 0 5px #f1c40f; }
         #progress-text { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #f1c40f; font-size: 14px; font-weight: bold; font-family: 'Courier New', Courier, monospace; text-shadow: 0 1px 3px rgba(0,0,0,0.8); z-index: 5; display: none; }
 
-        /* 计分板 Rank (上移贴紧轨道下方) */
+        /* 计分板 Rank */
         .score-display { position: absolute; top: calc(16% + 46px); left: 25%; transform: translateX(-50%); color: #fff; font-size: 16px; font-weight: bold; text-shadow: 0 2px 10px rgba(0,0,0,0.8), 0 0 5px #f1c40f; transition: transform 0.1s; display: flex; flex-direction: row; align-items: center; gap: 6px; }
         .score-display span { font-size: 24px; color: #f1c40f; }
         .score-display.pop { transform: translateX(-50%) scale(1.2); color: #2ecc71; }
@@ -55,17 +57,12 @@
         .score-display.shake-red span { color: #e74c3c !important; }
         @keyframes shakeRed { 0%, 100% { transform: translateX(-50%) scale(1); } 20% { transform: translateX(calc(-50% - 6px)) scale(1); } 40% { transform: translateX(calc(-50% + 6px)) scale(1); } 60% { transform: translateX(calc(-50% - 4px)) scale(1); } 80% { transform: translateX(calc(-50% + 4px)) scale(1); } }
         
-        /* 判定反馈文字 (改为瞬间爆发并缩小消失的动画) */
+        /* 判定反馈文字 */
         #judgment-text { position: absolute; top: 11.5%; left: 25%; transform: translateX(-50%) scale(0.5); text-align: center; font-size: 26px; font-weight: 900; color: #f1c40f; opacity: 0; text-shadow: 0 2px 8px rgba(0,0,0,0.8); z-index: 30; pointer-events: none; }
         #judgment-text.show { animation: popFade 0.6s ease-out forwards; }
-        @keyframes popFade {
-            0% { opacity: 0; transform: translateX(-50%) scale(0.5); }
-            20% { opacity: 1; transform: translateX(-50%) scale(1.1); }
-            70% { opacity: 1; transform: translateX(-50%) scale(1.1); }
-            100% { opacity: 0; transform: translateX(-50%) scale(1.5); }
-        }
+        @keyframes popFade { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); } 20% { opacity: 1; transform: translateX(-50%) scale(1.1); } 70% { opacity: 1; transform: translateX(-50%) scale(1.1); } 100% { opacity: 0; transform: translateX(-50%) scale(1.5); } }
 
-        /* 排行榜 UI (变更为窗口样式 Modal) */
+        /* 排行榜 UI (Modal) */
         #leaderboard-screen { display: none; z-index: 200; background: rgba(0, 0, 0, 0.7); }
         .modal-box { background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 20px; width: 85%; max-width: 350px; padding: 30px 20px; border: 2px solid #f1c40f; box-shadow: 0 10px 40px rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; }
         .lb-title { font-size: 32px; color: #f1c40f; font-weight: 900; margin-bottom: 15px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
@@ -80,14 +77,14 @@
         .lb-val { font-size: 18px; font-weight: bold; color: #f1c40f; }
         .lb-item.highlight { background: rgba(241, 196, 15, 0.1); border-radius: 8px; }
 
-        /* 其他工具 UI */
+        /* 录制 UI 工具与导出页 */
         #record-ui { position: absolute; top: 5%; right: 5%; z-index: 50; display: none; flex-direction: column; align-items: flex-end; }
         .rec-indicator { color: #ff4757; font-weight: bold; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); animation: blink 1s infinite; margin-bottom: 10px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px;}
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         #stop-rec-btn { background: #ff4757; color: white; border: none; padding: 10px 20px; border-radius: 15px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5); pointer-events: auto; cursor: pointer; }
-        #export-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 300; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; }
-        #export-textarea { width: 80%; height: 50%; background: #2f3542; color: #7bed9f; border: 2px solid #57606f; border-radius: 10px; padding: 15px; font-family: monospace; font-size: 14px; resize: none; margin-bottom: 20px; }
-        #copy-btn { background: #1e90ff; color: white; padding: 12px 30px; font-size: 18px; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; }
+        
+        #export-screen { z-index: 300; display: none; background: rgba(0,0,0,0.95); }
+        #export-textarea { width: 80%; height: 40%; background: #2f3542; color: #7bed9f; border: 2px solid #57606f; border-radius: 10px; padding: 15px; font-family: monospace; font-size: 14px; resize: none; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -106,13 +103,11 @@
         <div id="game-controls">
             <div id="rhythm-track">
                 <div id="hit-target"></div>
-                <!-- 60秒倒计时极细进度条与数值移动到了轨道内部 -->
                 <div id="progress-text">00:60</div>
                 <div id="progress-container">
                     <div id="progress-bar"></div>
                 </div>
             </div>
-
             <div class="score-display" id="combo-display">Rank<span id="scoreVal">0</span></div>
         </div>
         
@@ -128,11 +123,12 @@
             <button id="stop-rec-btn">结束录制并导出</button>
         </div>
 
-        <!-- 启动页 -->
+        <!-- 主菜单启动页 -->
         <div id="start-screen" class="full-screen-overlay">
             <h2 style="margin-bottom: 10px; text-shadow: 0 4px 10px rgba(0,0,0,0.8);">跳绳音游模式</h2>
             <p style="margin-bottom: 30px; color: #ccc; font-size: 14px;">请选择游玩模式</p>
-            <button id="start-btn" class="btn" style="opacity: 0.5; pointer-events: none;">⏳ 音乐加载中...</button>
+            <button id="start-btn" class="btn">▶ 开始挑战 (内置谱面)</button>
+            <button id="play-custom-btn" class="btn">▶ 游玩最新录制谱面</button>
             <button id="record-btn" class="btn">🛠️ 开发者打谱 (出卷模式)</button>
         </div>
 
@@ -149,14 +145,17 @@
                     <div class="lb-item"><span class="lb-rank">2</span><span class="lb-name">RhythmMaster</span><span class="lb-val">7200</span></div>
                     <div class="lb-item highlight"><span class="lb-rank">3</span><span class="lb-name">You (当前玩家)</span><span class="lb-val" id="your-lb-score">0</span></div>
                 </div>
-                <button id="restart-btn" class="btn" style="background: linear-gradient(45deg, #1e90ff, #2980b9); width: 90%;">重新开始游戏</button>
+                <button id="restart-btn" class="btn" style="background: linear-gradient(45deg, #1e90ff, #2980b9); width: 90%;">再来一次</button>
+                <button id="back-to-menu-btn" class="btn" style="background: #7f8c8d; width: 90%;">返回主菜单</button>
             </div>
         </div>
 
-        <div id="export-screen">
+        <!-- 导出结果页 -->
+        <div id="export-screen" class="full-screen-overlay">
             <h3>✅ 录制完成！</h3>
             <textarea id="export-textarea" readonly></textarea>
-            <button id="copy-btn">一键复制代码</button>
+            <button id="copy-btn" class="btn" style="background: #1e90ff;">一键复制代码</button>
+            <button id="back-from-export-btn" class="btn" style="background: #e74c3c;">返回主菜单去试玩</button>
         </div>
     </div>
 
@@ -167,30 +166,28 @@
     const judgmentText = document.getElementById('judgment-text');
     const bgmAudio = document.getElementById('bgm');
 
+    let currentPlayMode = 'builtin'; // 'builtin', 'custom', 'record'
     let isRecordMode = false;
     let recordedMap = []; 
 
     // ==========================================
-    // 专属考卷 (包含预备拍 isDummy)
+    // 专属内置考卷 (包含预备拍)
     // ==========================================
     const BEATMAP = [
-        { time: 1892, isDummy: true },
-        { time: 3752, isDummy: true },
-        { time: 5612, judged: false },    { time: 7441, judged: false },    { time: 9340, judged: false },    { time: 11153, judged: false },
-        { time: 13032, judged: false },   { time: 14984, judged: false },   { time: 16889, judged: false },   { time: 18718, judged: false },
-        { time: 20620, judged: false },   { time: 22479, judged: false },   { time: 24391, judged: false },   { time: 26089, judged: false },
-        { time: 28077, judged: false },   { time: 29905, judged: false },   { time: 31789, judged: false },   { time: 33761, judged: false },
-        { time: 37556, judged: false },   { time: 38459, judged: false },   { time: 39365, judged: false },   { time: 40347, judged: false },
-        { time: 40773, judged: false },   { time: 41256, judged: false },   { time: 42188, judged: false },   { time: 43165, judged: false },
-        { time: 44115, judged: false },   { time: 44550, judged: false },   { time: 45022, judged: false },   { time: 45956, judged: false },
-        { time: 46871, judged: false },   { time: 47797, judged: false },   { time: 48227, judged: false },   { time: 48739, judged: false },
-        { time: 49696, judged: false },   { time: 50660, judged: false },   { time: 51593, judged: false },   { time: 52520, judged: false },
-        { time: 53463, judged: false },   { time: 54398, judged: false },   { time: 54866, judged: false },   { time: 55421, judged: false },
-        { time: 56319, judged: false },
+        { time: 1892, isDummy: true }, { time: 3752, isDummy: true },
+        { time: 5612 }, { time: 7441 }, { time: 9340 }, { time: 11153 },
+        { time: 13032 }, { time: 14984 }, { time: 16889 }, { time: 18718 },
+        { time: 20620 }, { time: 22479 }, { time: 24391 }, { time: 26089 },
+        { time: 28077 }, { time: 29905 }, { time: 31789 }, { time: 33761 },
+        { time: 37556 }, { time: 38459 }, { time: 39365 }, { time: 40347 },
+        { time: 40773 }, { time: 41256 }, { time: 42188 }, { time: 43165 },
+        { time: 44115 }, { time: 44550 }, { time: 45022 }, { time: 45956 },
+        { time: 46871 }, { time: 47797 }, { time: 48227 }, { time: 48739 },
+        { time: 49696 }, { time: 50660 }, { time: 51593 }, { time: 52520 },
+        { time: 53463 }, { time: 54398 }, { time: 54866 }, { time: 55421 }, { time: 56319 }
     ];
 
-    // 提取真实节拍用于核心逻辑运算
-    const realBeats = BEATMAP.filter(b => !b.isDummy);
+    let realBeats = []; // 每次游戏开始时动态生成需要判定的真实谱面
 
     // ==========================================
     // 资产与基础配置
@@ -208,7 +205,7 @@
     const ROPE_PHYSICS = { rhythmIntensity: 0.6, whipOffset: 0, enableTensionDeform: true };
     const GAME_CONFIG = { jumpDuration: 400, jumpHeight: 60, fallAnimTime: 300, fallenTime: 400, getUpTime: 300 };
 
-    // 游戏状态机: START_SCREEN -> COUNTDOWN -> PLAYING -> GAME_OVER
+    // 游戏状态机
     const gameState = { targetScore: 0, displayScore: 0, ropeAngle: Math.PI, ropeProgress: 0, status: 'START_SCREEN' };
 
     function resize() {
@@ -242,7 +239,7 @@
     window.addEventListener('resize', resize);
 
     // ==========================================
-    // 角色渲染类 
+    // 角色与渲染类
     // ==========================================
     class Character {
         constructor(x, y, type) { this.baseX = x; this.baseY = y; this.type = type; this.state = 'IDLE'; this.offsetY = 0; this.animTimer = 0; this.fallType = 'NONE'; this.currentFrame = 0; this.frameTimer = 0; this.frameDuration = 200 + Math.random() * 50; }
@@ -317,27 +314,96 @@
     }
 
     // ==========================================
-    // 音乐加载与启动流程 (321 倒计时)
+    // 菜单管理与启动流转体系 (完美修复手机端触摸限制)
     // ==========================================
-    const checkAudioReady = () => {
-        if (bgmAudio.readyState >= 3) {
-            const btn = document.getElementById('start-btn');
-            btn.innerHTML = "▶ 开始挑战 (已载入专属谱面)";
-            btn.style.opacity = '1';
-            btn.style.pointerEvents = 'auto';
-        }
-    };
-    bgmAudio.addEventListener('canplay', checkAudioReady);
-    bgmAudio.addEventListener('canplaythrough', checkAudioReady);
-    setTimeout(checkAudioReady, 1000); 
+    
+    // 【核心修复】：剥离 UI 点击与游戏场景互动的事件冲突
+    const handleGameTap = (e) => {
+        // 如果点击的是按钮、文本框，或者是 UI 层内部，直接放行，不阻止默认行为
+        const isClickableUI = e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.tagName === 'TEXTAREA' ||
+                              e.target.closest('#leaderboard-screen') || e.target.closest('#export-screen') || e.target.closest('#start-screen');
+        if (isClickableUI) return; 
 
-    function startCountdownAndPlay(recordMode) {
-        isRecordMode = recordMode;
+        // 仅在游戏进行或录制中响应跳跃
+        if (gameState.status !== 'PLAYING' && gameState.status !== 'RECORDING') return;
+
+        e.preventDefault();
+        handleInput();
+    };
+    document.getElementById('mobile-container').addEventListener('mousedown', handleGameTap);
+    document.getElementById('mobile-container').addEventListener('touchstart', handleGameTap, {passive: false});
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); handleInput(); } });
+
+    function goToMenu() {
+        gameState.status = 'START_SCREEN';
+        document.getElementById('start-screen').style.display = 'flex';
+        document.getElementById('leaderboard-screen').style.display = 'none';
+        document.getElementById('export-screen').style.display = 'none';
+        document.getElementById('record-ui').style.display = 'none';
+        document.getElementById('countdown-overlay').style.display = 'none';
+        bgmAudio.pause(); bgmAudio.currentTime = 0;
+    }
+
+    // 绑定 UI 按钮事件 (统一使用普通的 click)
+    document.getElementById('start-btn').addEventListener('click', () => { currentPlayMode = 'builtin'; unlockAudioAndStart(); });
+    document.getElementById('play-custom-btn').addEventListener('click', () => {
+        if (recordedMap.length === 0) {
+            const btn = document.getElementById('play-custom-btn');
+            const oldText = btn.innerText; btn.innerText = "❌ 暂无记录，请先打谱";
+            setTimeout(() => btn.innerText = oldText, 2000); return;
+        }
+        currentPlayMode = 'custom'; unlockAudioAndStart();
+    });
+    document.getElementById('record-btn').addEventListener('click', () => { currentPlayMode = 'record'; unlockAudioAndStart(); });
+    document.getElementById('restart-btn').addEventListener('click', () => unlockAudioAndStart());
+    document.getElementById('back-to-menu-btn').addEventListener('click', goToMenu);
+    document.getElementById('back-from-export-btn').addEventListener('click', goToMenu);
+
+    // 【核心修复】：解决手机端音乐无法加载。在点击按钮的瞬间直接激活 audio
+    function unlockAudioAndStart() {
+        bgmAudio.play().then(() => {
+            bgmAudio.pause(); bgmAudio.currentTime = 0;
+            executeStartFlow();
+        }).catch((e) => {
+            console.log("Audio unlock interaction missed, proceeding fallback", e);
+            executeStartFlow();
+        });
+    }
+
+    function executeStartFlow() {
         document.getElementById('start-screen').style.display = 'none';
         document.getElementById('leaderboard-screen').style.display = 'none';
+        document.getElementById('export-screen').style.display = 'none';
 
-        if (!isRecordMode) {
-            // 普通模式：展示 321 倒计时
+        if (currentPlayMode === 'record') {
+            isRecordMode = true; recordedMap = [];
+            document.getElementById('record-ui').style.display = 'flex';
+            document.getElementById('rhythm-track').style.opacity = '0'; 
+            document.getElementById('combo-display').style.opacity = '0'; 
+            document.getElementById('progress-container').style.display = 'none';
+            document.getElementById('progress-text').style.display = 'none';
+            
+            gameState.status = 'RECORDING'; bgmAudio.currentTime = 0; bgmAudio.play();
+        } else {
+            isRecordMode = false;
+            // 动态装载谱面
+            if (currentPlayMode === 'builtin') {
+                realBeats = BEATMAP.filter(b => !b.isDummy).map(b => ({ time: b.time, judged: false }));
+            } else if (currentPlayMode === 'custom') {
+                realBeats = recordedMap.map(b => ({ time: b.time, judged: false }));
+            }
+            
+            document.querySelectorAll('.note').forEach(n => n.remove());
+            gameState.targetScore = 0; gameState.displayScore = 0; scoreEl.innerText = "0";
+            
+            document.getElementById('rhythm-track').style.opacity = '1'; 
+            document.getElementById('combo-display').style.opacity = '1';
+            document.getElementById('progress-container').style.display = 'block';
+            document.getElementById('progress-text').style.display = 'block';
+            document.getElementById('record-ui').style.display = 'none';
+            document.getElementById('combo-display').classList.remove('shake-red');
+
+            gameState.status = 'COUNTDOWN';
             const overlay = document.getElementById('countdown-overlay');
             const cdText = document.getElementById('countdown-text');
             overlay.style.display = 'flex';
@@ -351,60 +417,37 @@
                     cdText.innerText = count;
                     cdText.style.animation = 'none'; void cdText.offsetWidth; cdText.style.animation = 'popScale 1s ease-out forwards';
                 } else {
-                    clearInterval(iv);
-                    overlay.style.display = 'none';
-                    startRealGame();
+                    clearInterval(iv); overlay.style.display = 'none';
+                    gameState.status = 'PLAYING'; bgmAudio.currentTime = 0; bgmAudio.play();
                 }
             }, 1000);
-        } else {
-            // 打谱模式：直接开始
-            startRealGame();
         }
     }
 
-    function startRealGame() {
-        if (isRecordMode) {
-            recordedMap = [];
-            document.getElementById('record-ui').style.display = 'flex';
-            document.getElementById('rhythm-track').style.opacity = '0'; 
-            document.getElementById('combo-display').style.opacity = '0'; 
-            document.getElementById('progress-container').style.display = 'none';
-            document.getElementById('progress-text').style.display = 'none';
-        } else {
-            realBeats.forEach(beat => { beat.judged = false; beat.success = undefined; if (beat.el) { beat.el.remove(); beat.el = null; } });
-            document.querySelectorAll('.note').forEach(n => n.remove());
-            
-            gameState.targetScore = 0; gameState.displayScore = 0; scoreEl.innerText = "0";
-            
-            document.getElementById('rhythm-track').style.opacity = '1'; 
-            document.getElementById('combo-display').style.opacity = '1';
-            document.getElementById('progress-container').style.display = 'block';
-            document.getElementById('progress-text').style.display = 'block';
-            document.getElementById('record-ui').style.display = 'none';
-            document.getElementById('combo-display').classList.remove('shake-red');
-        }
-
-        bgmAudio.currentTime = 0;
-        bgmAudio.play();
-        gameState.status = 'PLAYING';
-    }
+    // 结束录制与导出
+    document.getElementById('stop-rec-btn').addEventListener('click', () => { 
+        bgmAudio.pause(); gameState.status = 'START_SCREEN'; 
+        let outputCode = "const BEATMAP = [\n"; 
+        recordedMap.forEach((beat, index) => { outputCode += `    { time: ${beat.time}, judged: false },`; if ((index + 1) % 4 === 0) outputCode += "\n"; }); 
+        if (recordedMap.length % 4 !== 0) outputCode += "\n"; outputCode += "];"; 
+        document.getElementById('export-textarea').value = outputCode; document.getElementById('export-screen').style.display = 'flex'; 
+    });
+    document.getElementById('copy-btn').addEventListener('click', () => { document.getElementById('export-textarea').select(); document.execCommand('copy'); document.getElementById('copy-btn').innerText = "已复制！"; document.getElementById('copy-btn').style.background = "#2ecc71"; });
 
     // ==========================================
-    // 核心交互输入
+    // 核心交互与判定输入
     // ==========================================
     function handleInput() {
-        if (gameState.status !== 'PLAYING') return;
-        
         const playerTeam = teams[0]; const player = playerTeam.chars.find(c => c.type === 'PLAYER');
         if (!player || player.state !== 'IDLE') return;
 
         const currentAudioTime = bgmAudio.currentTime * 1000;
         const comboDisplay = document.getElementById('combo-display');
-
         const hitTarget = document.getElementById('hit-target');
+        
         hitTarget.classList.add('pulse'); setTimeout(() => hitTarget.classList.remove('pulse'), 100);
 
-        if (isRecordMode) {
+        if (gameState.status === 'RECORDING') {
             recordedMap.push({ time: Math.floor(currentAudioTime), judged: false });
             document.getElementById('rec-count').innerText = recordedMap.length;
             showJudgmentFeedback("RECORDED!", "#3498db"); spawnVFX(); player.jump(true); 
@@ -436,17 +479,6 @@
         }
     }
 
-    document.getElementById('mobile-container').addEventListener('mousedown', handleInput);
-    document.getElementById('mobile-container').addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(); }, {passive: false});
-    window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); handleInput(); } });
-
-    document.getElementById('start-btn').addEventListener('click', (e) => { e.stopPropagation(); startCountdownAndPlay(false); });
-    document.getElementById('start-btn').addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); startCountdownAndPlay(false); }, {passive: false});
-    document.getElementById('record-btn').addEventListener('click', (e) => { e.stopPropagation(); startCountdownAndPlay(true); });
-    document.getElementById('record-btn').addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); startCountdownAndPlay(true); }, {passive: false});
-    document.getElementById('restart-btn').addEventListener('click', (e) => { e.stopPropagation(); startCountdownAndPlay(false); });
-    document.getElementById('restart-btn').addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); startCountdownAndPlay(false); }, {passive: false});
-
     // ==========================================
     // 时钟与物理引擎循环
     // ==========================================
@@ -471,8 +503,7 @@
         requestAnimationFrame(gameLoop);
         const dt = timestamp - lastTime; lastTime = timestamp;
         
-        // 未在游戏中时，保持场景渲染即可
-        if (gameState.status !== 'PLAYING') {
+        if (gameState.status !== 'PLAYING' && gameState.status !== 'RECORDING') {
             teams.forEach(team => team.chars.forEach(c => c.update(dt)));
             ctx.clearRect(0, 0, width, height);
             teams.sort((a, b) => a.groundY - b.groundY).forEach(team => {
@@ -483,9 +514,9 @@
 
         const currentAudioTime = bgmAudio.currentTime * 1000;
 
-        if (isRecordMode) {
+        if (gameState.status === 'RECORDING') {
             gameState.ropeAngle += 0.003 * dt; if (gameState.ropeAngle >= Math.PI * 2) gameState.ropeAngle %= (Math.PI * 2);
-        } else {
+        } else if (gameState.status === 'PLAYING') {
             // 【60s 倒计时器逻辑】
             let timeLeft = Math.max(0, 60 - (currentAudioTime / 1000));
             let sStr = Math.ceil(timeLeft).toString().padStart(2, '0');
@@ -500,17 +531,15 @@
                 return;
             }
 
-            // 【前奏物理重构】: 计算何时第一个真实的节奏点入场
+            // 【前奏物理智能衔接】
             let firstBeatTime = realBeats[0] ? realBeats[0].time : 0;
             let startSwingingTime = firstBeatTime - 1500; 
 
-            if (currentAudioTime < startSwingingTime) {
-                // 待机阶段：在最低点轻柔摇晃
+            if (currentAudioTime < startSwingingTime && firstBeatTime > 0) {
                 gameState.ropeAngle = Math.PI + Math.sin(currentAudioTime * 0.003) * 0.15;
                 gameState.ropeProgress = 0;
-                teams.forEach(team => team.chars.forEach(c => c.jumpedThisLoop = false)); // 防止 AI 乱跳
+                teams.forEach(team => team.chars.forEach(c => c.jumpedThisLoop = false)); 
             } else {
-                // 正式阶段：物理引擎计算，完美衔接
                 let prevBeatTime = startSwingingTime; let nextBeatTime = firstBeatTime;
                 for (let i = 0; i < realBeats.length; i++) {
                     if (currentAudioTime >= realBeats[i].time) {
@@ -519,7 +548,6 @@
                     }
                 }
 
-                // 漏接 Miss 判定
                 realBeats.forEach(beat => {
                     if (!beat.judged && currentAudioTime - beat.time > 150) {
                         beat.judged = true; beat.success = false; showJudgmentFeedback("MISS", "#e74c3c");
@@ -543,7 +571,6 @@
                 if (gameState.ropeProgress < 0.1) { teams.forEach(team => team.chars.forEach(c => c.jumpedThisLoop = false)); }
             }
 
-            // 【计分板：平滑滚动数字插值动效】
             if (Math.abs(gameState.targetScore - gameState.displayScore) > 0.5) {
                 gameState.displayScore += (gameState.targetScore - gameState.displayScore) * 0.15;
                 scoreEl.innerText = Math.round(gameState.displayScore);
@@ -559,10 +586,6 @@
         teams.sort((a, b) => a.groundY - b.groundY).forEach(team => { drawRope(team, false); team.chars.sort((a, b) => a.baseY - b.baseY).forEach(c => c.draw(ctx)); drawRope(team, true); });
         activeVFX.forEach(vfx => vfx.draw(ctx));
     }
-
-    // 录制相关函数挂载
-    document.getElementById('stop-rec-btn').addEventListener('click', (e) => { e.stopPropagation(); bgmAudio.pause(); gameState.status = 'GAME_OVER'; let outputCode = "const BEATMAP = [\n"; recordedMap.forEach((beat, index) => { outputCode += `    { time: ${beat.time}, judged: false },`; if ((index + 1) % 4 === 0) outputCode += "\n"; }); if (recordedMap.length % 4 !== 0) outputCode += "\n"; outputCode += "];"; document.getElementById('export-textarea').value = outputCode; document.getElementById('export-screen').style.display = 'flex'; });
-    document.getElementById('copy-btn').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('export-textarea').select(); document.execCommand('copy'); document.getElementById('copy-btn').innerText = "已复制！"; document.getElementById('copy-btn').style.background = "#2ecc71"; });
 
     resize(); requestAnimationFrame(gameLoop);
 </script>
