@@ -3,94 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>聊天室 Q 版跳绳 Demo (多队伍版)</title>
+    <title>聊天室 Q 版跳绳 Demo (完整闭环版)</title>
     <style>
         /* 基础重置 */
         * { box-sizing: border-box; }
-        body {
-            margin: 0; padding: 0; 
-            background-color: #1a1a2e; 
-            display: flex; justify-content: center; align-items: center;
-            height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            touch-action: none;
+        body { margin: 0; padding: 0; background-color: #1a1a2e; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; }
+        #mobile-container { width: 100%; height: 100%; max-width: calc(100vh * (720 / 1560)); max-height: calc(100vw * (1560 / 720)); aspect-ratio: 720 / 1560; position: relative; overflow: hidden; background-color: #1a1a2e; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+
+        /* 视频与 UI */
+        #bg-video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        #ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('https://i.imgur.com/W2LQgSy.png'); background-size: 100% 100%; z-index: 5; pointer-events: none; }
+        #gameCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+
+        /* 开始页与排行榜页面通用样式 */
+        .full-screen-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; backdrop-filter: blur(8px); transition: opacity 0.5s; }
+        .btn { padding: 15px 40px; font-size: 20px; font-weight: bold; color: #fff; border: none; border-radius: 30px; cursor: pointer; margin: 10px; width: 280px; text-align: center; }
+        #start-btn { background: linear-gradient(45deg, #2ecc71, #27ae60); box-shadow: 0 10px 20px rgba(46, 204, 113, 0.4); animation: bounce 1s infinite alternate; transition: all 0.3s; }
+        #record-btn { background: linear-gradient(45deg, #e74c3c, #c0392b); box-shadow: 0 10px 20px rgba(231, 76, 60, 0.4); }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-5px); } }
+
+        /* 321 倒计时遮罩 */
+        #countdown-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 150; display: none; justify-content: center; align-items: center; }
+        #countdown-text { font-size: 150px; font-weight: 900; color: #f1c40f; text-shadow: 0 0 30px #f1c40f, 0 10px 20px rgba(0,0,0,0.8); }
+        @keyframes popScale { 0% { transform: scale(0.2); opacity: 0; } 40% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+
+        /* 游戏 UI层 */
+        #game-controls { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; }
+        
+        /* 音游轨道 */
+        #rhythm-track { position: absolute; top: 16%; left: 0; width: 100%; height: 42px; background: rgba(0, 0, 0, 0.5); box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: opacity 0.3s; }
+        #hit-target { position: absolute; left: 25%; top: 50%; transform: translate(-50%, -50%); width: 90px; height: 42px; background: rgba(255, 215, 0, 0.15); border: none; box-sizing: border-box; transition: all 0.1s; z-index: 2; }
+        #hit-target.pulse { background: rgba(46, 204, 113, 0.5); box-shadow: 0 0 20px rgba(46, 204, 113, 0.8) inset; }
+
+        /* 移动的节拍 Icon */
+        .note { position: absolute; top: 50%; width: 45px; height: 45px; background-image: url('https://i.imgur.com/W77M9my.png'); background-size: 100% 100%; background-position: center; background-repeat: no-repeat; transform: translate(-50%, -50%); transition: width 0.1s, height 0.1s, background-image 0.1s; z-index: 3; }
+        .note.highlight { background-image: url('https://i.imgur.com/sCP284K.png'); width: 55px; height: 55px; }
+        .note.hit { animation: hitSplash 0.3s ease-out forwards; }
+        @keyframes hitSplash { 0% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; } }
+
+        /* 60s 倒计时条 (已移至轨道内部与底部) */
+        #progress-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: rgba(0, 0, 0, 0.6); display: none; }
+        #progress-bar { height: 100%; width: 100%; background: #f1c40f; transform-origin: left; transition: width 0.1s linear; box-shadow: 0 0 5px #f1c40f; }
+        #progress-text { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #f1c40f; font-size: 14px; font-weight: bold; font-family: 'Courier New', Courier, monospace; text-shadow: 0 1px 3px rgba(0,0,0,0.8); z-index: 5; display: none; }
+
+        /* 计分板 Rank (上移贴紧轨道下方) */
+        .score-display { position: absolute; top: calc(16% + 46px); left: 25%; transform: translateX(-50%); color: #fff; font-size: 16px; font-weight: bold; text-shadow: 0 2px 10px rgba(0,0,0,0.8), 0 0 5px #f1c40f; transition: transform 0.1s; display: flex; flex-direction: row; align-items: center; gap: 6px; }
+        .score-display span { font-size: 24px; color: #f1c40f; }
+        .score-display.pop { transform: translateX(-50%) scale(1.2); color: #2ecc71; }
+        .score-display.pop span { color: #2ecc71; }
+        .score-display.shake-red { color: #e74c3c !important; animation: shakeRed 0.3s ease-in-out; }
+        .score-display.shake-red span { color: #e74c3c !important; }
+        @keyframes shakeRed { 0%, 100% { transform: translateX(-50%) scale(1); } 20% { transform: translateX(calc(-50% - 6px)) scale(1); } 40% { transform: translateX(calc(-50% + 6px)) scale(1); } 60% { transform: translateX(calc(-50% - 4px)) scale(1); } 80% { transform: translateX(calc(-50% + 4px)) scale(1); } }
+        
+        /* 判定反馈文字 (改为瞬间爆发并缩小消失的动画) */
+        #judgment-text { position: absolute; top: 11.5%; left: 25%; transform: translateX(-50%) scale(0.5); text-align: center; font-size: 26px; font-weight: 900; color: #f1c40f; opacity: 0; text-shadow: 0 2px 8px rgba(0,0,0,0.8); z-index: 30; pointer-events: none; }
+        #judgment-text.show { animation: popFade 0.6s ease-out forwards; }
+        @keyframes popFade {
+            0% { opacity: 0; transform: translateX(-50%) scale(0.5); }
+            20% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+            70% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+            100% { opacity: 0; transform: translateX(-50%) scale(1.5); }
         }
 
-        /* 手机屏幕模拟容器 */
-        #mobile-container {
-            width: 100%;
-            height: 100%;
-            max-width: calc(100vh * (720 / 1560));
-            max-height: calc(100vw * (1560 / 720));
-            aspect-ratio: 720 / 1560;
-            position: relative; overflow: hidden;
-            background-color: #1a1a2e; 
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
-        }
+        /* 排行榜 UI (变更为窗口样式 Modal) */
+        #leaderboard-screen { display: none; z-index: 200; background: rgba(0, 0, 0, 0.7); }
+        .modal-box { background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 20px; width: 85%; max-width: 350px; padding: 30px 20px; border: 2px solid #f1c40f; box-shadow: 0 10px 40px rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; }
+        .lb-title { font-size: 32px; color: #f1c40f; font-weight: 900; margin-bottom: 15px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .lb-score-box { text-align: center; margin-bottom: 25px; }
+        .lb-score-box p { margin: 0; color: #ccc; font-size: 16px; }
+        .lb-score-box h1 { margin: 5px 0 0 0; color: #2ecc71; font-size: 42px; text-shadow: 0 0 15px rgba(46, 204, 113, 0.6); }
+        .lb-list { width: 100%; background: rgba(0,0,0,0.4); border-radius: 15px; padding: 10px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.1); }
+        .lb-item { display: flex; justify-content: space-between; align-items: center; color: #fff; padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .lb-item:last-child { border-bottom: none; }
+        .lb-rank { width: 30px; font-size: 18px; font-weight: bold; color: #f39c12; font-style: italic; }
+        .lb-name { flex-grow: 1; font-size: 16px; margin-left: 10px; }
+        .lb-val { font-size: 18px; font-weight: bold; color: #f1c40f; }
+        .lb-item.highlight { background: rgba(241, 196, 15, 0.1); border-radius: 8px; }
 
-        /* 1层：动态视频背景 */
-        #bg-video {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; z-index: 1; 
-        }
-
-        /* 2层：模拟房间 UI 遮罩层 */
-        #ui-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('https://i.imgur.com/W2LQgSy.png'); 
-            background-size: 100% 100%; z-index: 5; pointer-events: none; 
-        }
-
-        /* 3层：游戏层 */
-        #gameCanvas {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
-        }
-
-        /* 4层：控制层 */
-        #game-controls {
-            position: absolute; top: 15%; left: 0; width: 100%;
-            display: flex; flex-direction: column; align-items: center; z-index: 20;
-            pointer-events: none; 
-        }
-        .score-display { 
-            color: #fff; font-size: 20px; font-weight: bold; 
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8), 0 0 5px #f1c40f; 
-            margin-bottom: 20px;
-        }
-        #timingBar {
-            width: 240px; height: 14px; background: rgba(0, 0, 0, 0.6);
-            border-radius: 7px; border: 2px solid rgba(255,255,255,0.4);
-            position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-        #timingZone { position: absolute; height: 100%; background: rgba(46, 204, 113, 0.6); transition: background 0.1s; }
-        #timingZone.active { background: rgba(46, 204, 113, 1); box-shadow: 0 0 10px rgba(46, 204, 113, 0.8); }
-        #timingCursor {
-            position: absolute; top: -2px; width: 4px; height: 18px; background: #e74c3c;
-            border-radius: 2px; box-shadow: 0 0 5px #e74c3c; transition: transform 0.1s;
-        }
-        #timingCursor.active { background: #2ecc71; box-shadow: 0 0 10px #2ecc71; transform: scale(1.3); }
+        /* 其他工具 UI */
+        #record-ui { position: absolute; top: 5%; right: 5%; z-index: 50; display: none; flex-direction: column; align-items: flex-end; }
+        .rec-indicator { color: #ff4757; font-weight: bold; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); animation: blink 1s infinite; margin-bottom: 10px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px;}
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        #stop-rec-btn { background: #ff4757; color: white; border: none; padding: 10px 20px; border-radius: 15px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5); pointer-events: auto; cursor: pointer; }
+        #export-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 300; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; }
+        #export-textarea { width: 80%; height: 50%; background: #2f3542; color: #7bed9f; border: 2px solid #57606f; border-radius: 10px; padding: 15px; font-family: monospace; font-size: 14px; resize: none; margin-bottom: 20px; }
+        #copy-btn { background: #1e90ff; color: white; padding: 12px 30px; font-size: 18px; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="mobile-container">
-        <!-- 动态视频背景层 -->
+        <!-- 音乐播放器 -->
+        <audio id="bgm" src="https://o-static.ezpzapp.net/ezpz/c2e961c4b771fb2114dfc14e7ff04cff/djshenhua.mp3" preload="auto"></audio>
+
         <video id="bg-video" autoplay loop muted playsinline>
             <source src="https://i.imgur.com/jyr0nPx.mp4" type="video/mp4">
         </video>
 
-        <!-- UI 遮罩层 -->
         <div id="ui-overlay"></div>
-
-        <!-- 游戏渲染画布 -->
         <canvas id="gameCanvas"></canvas>
 
-        <!-- 游戏控制与分数 -->
         <div id="game-controls">
-            <div class="score-display">Combo: <span id="scoreVal">0</span></div>
-            <div id="timingBar">
-                <div id="timingZone"></div>
-                <div id="timingCursor"></div>
+            <div id="rhythm-track">
+                <div id="hit-target"></div>
+                <!-- 60秒倒计时极细进度条与数值移动到了轨道内部 -->
+                <div id="progress-text">00:60</div>
+                <div id="progress-container">
+                    <div id="progress-bar"></div>
+                </div>
             </div>
+
+            <div class="score-display" id="combo-display">Rank<span id="scoreVal">0</span></div>
+        </div>
+        
+        <div id="judgment-text">PERFECT!</div>
+
+        <!-- 321 倒计时层 -->
+        <div id="countdown-overlay">
+            <div id="countdown-text">3</div>
+        </div>
+
+        <div id="record-ui">
+            <div class="rec-indicator">🔴 REC - 已录制: <span id="rec-count">0</span> 拍</div>
+            <button id="stop-rec-btn">结束录制并导出</button>
+        </div>
+
+        <!-- 启动页 -->
+        <div id="start-screen" class="full-screen-overlay">
+            <h2 style="margin-bottom: 10px; text-shadow: 0 4px 10px rgba(0,0,0,0.8);">跳绳音游模式</h2>
+            <p style="margin-bottom: 30px; color: #ccc; font-size: 14px;">请选择游玩模式</p>
+            <button id="start-btn" class="btn" style="opacity: 0.5; pointer-events: none;">⏳ 音乐加载中...</button>
+            <button id="record-btn" class="btn">🛠️ 开发者打谱 (出卷模式)</button>
+        </div>
+
+        <!-- 结算排行榜 -->
+        <div id="leaderboard-screen" class="full-screen-overlay">
+            <div class="modal-box">
+                <h1 class="lb-title">TIME UP!</h1>
+                <div class="lb-score-box">
+                    <p>最终得分</p>
+                    <h1 id="final-score-val">0</h1>
+                </div>
+                <div class="lb-list">
+                    <div class="lb-item"><span class="lb-rank">1</span><span class="lb-name">Dancer_King</span><span class="lb-val">8400</span></div>
+                    <div class="lb-item"><span class="lb-rank">2</span><span class="lb-name">RhythmMaster</span><span class="lb-val">7200</span></div>
+                    <div class="lb-item highlight"><span class="lb-rank">3</span><span class="lb-name">You (当前玩家)</span><span class="lb-val" id="your-lb-score">0</span></div>
+                </div>
+                <button id="restart-btn" class="btn" style="background: linear-gradient(45deg, #1e90ff, #2980b9); width: 90%;">重新开始游戏</button>
+            </div>
+        </div>
+
+        <div id="export-screen">
+            <h3>✅ 录制完成！</h3>
+            <textarea id="export-textarea" readonly></textarea>
+            <button id="copy-btn">一键复制代码</button>
         </div>
     </div>
 
@@ -98,16 +164,36 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const scoreEl = document.getElementById('scoreVal');
-    const timingZoneEl = document.getElementById('timingZone');
-    const timingCursorEl = document.getElementById('timingCursor');
+    const judgmentText = document.getElementById('judgment-text');
+    const bgmAudio = document.getElementById('bgm');
 
-    function hexToRgb(hex) {
-        let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 241, g: 196, b: 15 };
-    }
+    let isRecordMode = false;
+    let recordedMap = []; 
 
     // ==========================================
-    // 序列帧资产接入
+    // 专属考卷 (包含预备拍 isDummy)
+    // ==========================================
+    const BEATMAP = [
+        { time: 1892, isDummy: true },
+        { time: 3752, isDummy: true },
+        { time: 5612, judged: false },    { time: 7441, judged: false },    { time: 9340, judged: false },    { time: 11153, judged: false },
+        { time: 13032, judged: false },   { time: 14984, judged: false },   { time: 16889, judged: false },   { time: 18718, judged: false },
+        { time: 20620, judged: false },   { time: 22479, judged: false },   { time: 24391, judged: false },   { time: 26089, judged: false },
+        { time: 28077, judged: false },   { time: 29905, judged: false },   { time: 31789, judged: false },   { time: 33761, judged: false },
+        { time: 37556, judged: false },   { time: 38459, judged: false },   { time: 39365, judged: false },   { time: 40347, judged: false },
+        { time: 40773, judged: false },   { time: 41256, judged: false },   { time: 42188, judged: false },   { time: 43165, judged: false },
+        { time: 44115, judged: false },   { time: 44550, judged: false },   { time: 45022, judged: false },   { time: 45956, judged: false },
+        { time: 46871, judged: false },   { time: 47797, judged: false },   { time: 48227, judged: false },   { time: 48739, judged: false },
+        { time: 49696, judged: false },   { time: 50660, judged: false },   { time: 51593, judged: false },   { time: 52520, judged: false },
+        { time: 53463, judged: false },   { time: 54398, judged: false },   { time: 54866, judged: false },   { time: 55421, judged: false },
+        { time: 56319, judged: false },
+    ];
+
+    // 提取真实节拍用于核心逻辑运算
+    const realBeats = BEATMAP.filter(b => !b.isDummy);
+
+    // ==========================================
+    // 资产与基础配置
     // ==========================================
     const idleSprite = new Image(); idleSprite.crossOrigin = "Anonymous"; idleSprite.src = "https://i.imgur.com/WMzjNCZ.png"; 
     const fallSprite = new Image(); fallSprite.crossOrigin = "Anonymous"; fallSprite.src = "https://i.imgur.com/0Bxiqut.png"; 
@@ -117,48 +203,35 @@
     const jumpDownFailSprite = new Image(); jumpDownFailSprite.crossOrigin = "Anonymous"; jumpDownFailSprite.src = "https://i.imgur.com/RHSnwfS.png"; 
     const vfxSprite = new Image(); vfxSprite.crossOrigin = "Anonymous"; vfxSprite.src = "https://i.imgur.com/KrJSSrq.png";
 
-    let gameColors = { ropeColor: '#f1c40f' };
+    let width, height; let teams = []; let activeVFX = []; 
 
-    let width, height;
-    let teams = []; // 多队伍架构数组
-    let activeVFX = []; 
-    
+    const ROPE_PHYSICS = { rhythmIntensity: 0.6, whipOffset: 0, enableTensionDeform: true };
+    const GAME_CONFIG = { jumpDuration: 400, jumpHeight: 60, fallAnimTime: 300, fallenTime: 400, getUpTime: 300 };
+
+    // 游戏状态机: START_SCREEN -> COUNTDOWN -> PLAYING -> GAME_OVER
+    const gameState = { targetScore: 0, displayScore: 0, ropeAngle: Math.PI, ropeProgress: 0, status: 'START_SCREEN' };
+
     function resize() {
         const container = document.getElementById('mobile-container');
-        width = container.clientWidth;
-        height = container.clientHeight; 
-        canvas.width = width;
-        canvas.height = height;
-        
-        let groundY1 = height * 0.35; // 上方第一组位置
-        let groundY2 = height * 0.52; // 下方第二组位置 (整体上移，之前是 0.65)
+        width = container.clientWidth; height = container.clientHeight; 
+        canvas.width = width; canvas.height = height;
+        let groundY1 = height * 0.35; let groundY2 = height * 0.52; 
         
         if (teams.length === 0) {
-            // 初始化两支队伍 (移除独立的 ropeAngle 和 ropeSpeed，统一由 gameState 管理)
             teams.push({ id: 1, isPlayerTeam: true, groundY: groundY1, chars: [] });
             teams.push({ id: 2, isPlayerTeam: false, groundY: groundY2, chars: [] });
-
             teams.forEach(team => {
-                const centerX = width / 2;
-                const spacing = width * 0.22; 
+                const centerX = width / 2; const spacing = width * 0.22; 
                 team.chars.push(new Character(centerX - spacing * 1.5, team.groundY, 'AI'));
-                
-                // 只有第一支队伍有玩家控制
-                if (team.isPlayerTeam) {
-                    team.chars.push(new Character(centerX - spacing * 0.5, team.groundY, 'PLAYER'));
-                } else {
-                    team.chars.push(new Character(centerX - spacing * 0.5, team.groundY, 'AI'));
-                }
-                
+                if (team.isPlayerTeam) team.chars.push(new Character(centerX - spacing * 0.5, team.groundY, 'PLAYER'));
+                else team.chars.push(new Character(centerX - spacing * 0.5, team.groundY, 'AI'));
                 team.chars.push(new Character(centerX + spacing * 0.5, team.groundY, 'AI'));
                 team.chars.push(new Character(centerX + spacing * 1.5, team.groundY, 'AI'));
             });
         } else {
-            teams[0].groundY = groundY1;
-            teams[1].groundY = groundY2;
+            teams[0].groundY = groundY1; teams[1].groundY = groundY2;
             teams.forEach(team => {
-                const centerX = width / 2;
-                const spacing = width * 0.22; 
+                const centerX = width / 2; const spacing = width * 0.22; 
                 team.chars[0].baseX = centerX - spacing * 1.5; team.chars[0].baseY = team.groundY;
                 team.chars[1].baseX = centerX - spacing * 0.5; team.chars[1].baseY = team.groundY;
                 team.chars[2].baseX = centerX + spacing * 0.5; team.chars[2].baseY = team.groundY;
@@ -169,464 +242,329 @@
     window.addEventListener('resize', resize);
 
     // ==========================================
-    // 特效引擎 (VFX Particle System)
+    // 角色渲染类 
     // ==========================================
-    class ComboVFX {
-        constructor(x, y) {
-            this.x = x + (Math.random() - 0.5) * 80;
-            this.y = y + (Math.random() - 0.5) * 80;
-            this.scale = 1 + Math.random() * 2;
-            this.currentFrame = 0;
-            this.frameTimer = 0;
-            this.frameDuration = 33; 
-            this.isFinished = false;
-        }
-
+    class Character {
+        constructor(x, y, type) { this.baseX = x; this.baseY = y; this.type = type; this.state = 'IDLE'; this.offsetY = 0; this.animTimer = 0; this.fallType = 'NONE'; this.currentFrame = 0; this.frameTimer = 0; this.frameDuration = 200 + Math.random() * 50; }
+        jump(isSuccess) { if (this.state !== 'IDLE') return; this.animTimer = 0; this.currentFrame = 0; this.state = isSuccess ? 'JUMP_SUCC' : 'JUMP_FAIL'; this.fallType = isSuccess ? 'NONE' : 'FROM_JUMP'; }
+        fallDirectly() { if (this.state !== 'IDLE') return; this.animTimer = 0; this.currentFrame = 0; this.state = 'FALL_DOWN'; this.fallType = 'FROM_IDLE'; }
         update(dt) {
-            this.frameTimer += dt;
-            if (this.frameTimer >= this.frameDuration) {
-                this.currentFrame++;
-                this.frameTimer = 0;
-                if (this.currentFrame >= 18) {
-                    this.isFinished = true;
-                }
-            }
+            if (this.state === 'IDLE') { this.frameTimer += dt; if (this.frameTimer >= this.frameDuration) { this.currentFrame = (this.currentFrame + 1) % 3; this.frameTimer = 0; } } 
+            else if (this.state === 'JUMP_SUCC' || this.state === 'JUMP_FAIL') {
+                this.animTimer += dt; let progress = this.animTimer / GAME_CONFIG.jumpDuration;
+                if (progress >= 1) { this.offsetY = 0; if (this.state === 'JUMP_SUCC') { this.state = 'IDLE'; this.currentFrame = 0; this.frameTimer = 0; } else { this.state = 'FALLEN'; this.animTimer = 0; } } 
+                else { this.offsetY = -Math.sin(progress * Math.PI) * GAME_CONFIG.jumpHeight; if (progress <= 0.5) { this.currentFrame = Math.min(5, Math.floor(progress * 2 * 6)); } else { let p2 = (progress - 0.5) * 2; if (this.state === 'JUMP_SUCC') this.currentFrame = Math.min(5, Math.floor(p2 * 6)); else this.currentFrame = Math.min(4, Math.floor(p2 * 5)); } }
+            } 
+            else if (this.state === 'FALL_DOWN') { this.animTimer += dt; let progress = Math.min(this.animTimer / GAME_CONFIG.fallAnimTime, 1); this.currentFrame = Math.min(5, Math.floor(progress * 6)); if (progress >= 1) { this.state = 'FALLEN'; this.animTimer = 0; } } 
+            else if (this.state === 'FALLEN') { this.animTimer += dt; if (this.animTimer >= GAME_CONFIG.fallenTime) { this.state = 'GETUP'; this.animTimer = 0; this.currentFrame = 0; } } 
+            else if (this.state === 'GETUP') { this.animTimer += dt; let progress = Math.min(this.animTimer / GAME_CONFIG.getUpTime, 1); this.currentFrame = Math.min(5, Math.floor(progress * 6)); if (progress >= 1) { this.state = 'IDLE'; this.animTimer = 0; this.currentFrame = 0; } }
         }
-
         draw(ctx) {
-            if (this.isFinished || !vfxSprite.complete || vfxSprite.naturalWidth === 0) return;
-
-            const frameW = vfxSprite.width / 6;
-            const frameH = vfxSprite.height / 3;
-            const col = this.currentFrame % 6;
-            const row = Math.floor(this.currentFrame / 6);
-
-            const baseW = width * 0.2;
-            const drawW = baseW * this.scale; 
-            const drawH = drawW * (frameH / frameW);
-
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.globalCompositeOperation = 'screen';
-            ctx.drawImage(
-                vfxSprite,
-                col * frameW, row * frameH, frameW, frameH,
-                -drawW / 2, -drawH / 2, drawW, drawH
-            );
+            ctx.save(); ctx.translate(this.baseX, this.baseY);
+            let shadowRadiusX = width * 0.042; let shadowRadiusY = width * 0.01; let shadowAlpha = 0.4; let shadowOffsetY = -width * 0.015; 
+            if (this.state === 'JUMP_SUCC' || this.state === 'JUMP_FAIL') { let jumpFactor = Math.abs(this.offsetY) / GAME_CONFIG.jumpHeight; shadowRadiusX *= (1 - jumpFactor * 0.5); shadowRadiusY *= (1 - jumpFactor * 0.5); shadowAlpha *= (1 - jumpFactor * 0.6); } 
+            else if (this.state === 'FALL_DOWN' || this.state === 'FALLEN' || this.state === 'GETUP') { let fallFactor = 0; if (this.state === 'FALL_DOWN') fallFactor = this.currentFrame / 5; else if (this.state === 'FALLEN') fallFactor = 1; else if (this.state === 'GETUP') fallFactor = 1 - (this.currentFrame / 5); shadowRadiusX *= (1 + fallFactor * 0.28); shadowRadiusY *= (1 + fallFactor * 0.07); shadowAlpha = 0.4 + fallFactor * 0.15; }
+            ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`; ctx.beginPath(); ctx.ellipse(0, shadowOffsetY, shadowRadiusX, shadowRadiusY, 0, 0, Math.PI * 2); ctx.fill(); ctx.translate(0, this.offsetY);
+            let currentSprite = idleSprite; let totalFrames = 3;
+            if (this.state === 'JUMP_SUCC' || this.state === 'JUMP_FAIL') { let progress = this.animTimer / GAME_CONFIG.jumpDuration; if (progress <= 0.5) { currentSprite = jumpUpSprite; totalFrames = 6; } else { currentSprite = this.state === 'JUMP_SUCC' ? jumpDownSuccSprite : jumpDownFailSprite; totalFrames = this.state === 'JUMP_SUCC' ? 6 : 5; } } 
+            else if (this.state === 'FALL_DOWN') { currentSprite = fallSprite; totalFrames = 6; } 
+            else if (this.state === 'FALLEN') { currentSprite = this.fallType === 'FROM_JUMP' ? jumpDownFailSprite : fallSprite; totalFrames = this.fallType === 'FROM_JUMP' ? 5 : 6; this.currentFrame = this.fallType === 'FROM_JUMP' ? 4 : 5; } 
+            else if (this.state === 'GETUP') { currentSprite = getupSprite; totalFrames = 6; }
+            if (currentSprite.complete && currentSprite.naturalWidth > 0) {
+                const frameW = currentSprite.width / totalFrames; const frameH = currentSprite.height; const drawW = width * 0.192; const drawH = drawW * (frameH / frameW); 
+                if (this.type === 'PLAYER') { ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.moveTo(-6, -drawH - 14); ctx.lineTo(6, -drawH - 14); ctx.lineTo(0, -drawH - 5); ctx.fill(); }
+                ctx.drawImage(currentSprite, this.currentFrame * frameW, 0, frameW, frameH, -drawW / 2, -drawH, drawW, drawH);
+            }
             ctx.restore();
         }
     }
 
-    // ==========================================
-    // 动画时间轴驱动引擎
-    // ==========================================
-    const GAME_CONFIG = {
-        jumpDuration: 400,   
-        jumpHeight: 60,      
-        perfectMin: 2.4,     
-        perfectMax: 3.5,     
-        missThreshold: 3.6,  
-        fallAnimTime: 300,   
-        fallenTime: 400,     
-        getUpTime: 300       
-    };
-
-    const gameState = {
-        score: 0,
-        lastTime: 0,
-        ropeAngle: 0,        // 统一的绳子角度
-        ropeSpeed: 0.0035    // 统一的绳子速度
-    };
-    
-    class Character {
-        constructor(x, y, type) {
-            this.baseX = x;
-            this.baseY = y;
-            this.type = type; 
-            this.state = 'IDLE'; 
-            this.offsetY = 0;
-            this.animTimer = 0; 
-            this.jumpedThisLoop = false;
-            this.fallType = 'NONE'; 
-            this.willMiss = false; // 新增：是否在当前轮次刻意失误
-            
-            this.currentFrame = 0;
-            this.frameTimer = 0;
-            this.frameDuration = 200 + Math.random() * 50; 
-        }
-
-        jump(isSuccess) {
-            if (this.state !== 'IDLE') return;
-            this.animTimer = 0;
-            this.currentFrame = 0;
-            this.state = isSuccess ? 'JUMP_SUCC' : 'JUMP_FAIL';
-            this.fallType = isSuccess ? 'NONE' : 'FROM_JUMP'; 
-            this.jumpedThisLoop = true;
-        }
-
-        fallDirectly() {
-            if (this.state !== 'IDLE') return;
-            this.animTimer = 0;
-            this.currentFrame = 0;
-            this.state = 'FALL_DOWN';
-            this.fallType = 'FROM_IDLE'; 
-        }
-
-        update(dt) {
-            if (this.type === 'AI') {
-                // 如果是AI，且没有被标记为即将失误，则在判定区自动跳跃 (统一使用 gameState.ropeAngle)
-                if (gameState.ropeAngle >= GAME_CONFIG.perfectMin && 
-                    gameState.ropeAngle <= GAME_CONFIG.perfectMax && 
-                    this.state === 'IDLE' && 
-                    !this.jumpedThisLoop && 
-                    !this.willMiss) {
-                    this.jump(true);
-                }
-            }
-
-            if (this.state === 'IDLE') {
-                this.frameTimer += dt; 
-                if (this.frameTimer >= this.frameDuration) {
-                    this.currentFrame = (this.currentFrame + 1) % 3; 
-                    this.frameTimer = 0;
-                }
-            } 
-            else if (this.state === 'JUMP_SUCC' || this.state === 'JUMP_FAIL') {
-                this.animTimer += dt;
-                let progress = this.animTimer / GAME_CONFIG.jumpDuration;
-                
-                if (progress >= 1) {
-                    this.offsetY = 0;
-                    if (this.state === 'JUMP_SUCC') {
-                        this.state = 'IDLE'; 
-                        this.currentFrame = 0; 
-                        this.frameTimer = 0;   
-                    } else {
-                        this.state = 'FALLEN';
-                        this.animTimer = 0;
-                    }
-                } else {
-                    this.offsetY = -Math.sin(progress * Math.PI) * GAME_CONFIG.jumpHeight;
-                    
-                    if (progress <= 0.5) {
-                        let p2 = progress * 2;
-                        this.currentFrame = Math.min(5, Math.floor(p2 * 6));
-                    } else {
-                        let p2 = (progress - 0.5) * 2;
-                        if (this.state === 'JUMP_SUCC') {
-                            this.currentFrame = Math.min(5, Math.floor(p2 * 6));
-                        } else {
-                            this.currentFrame = Math.min(4, Math.floor(p2 * 5)); 
-                        }
-                    }
-                }
-            } 
-            else if (this.state === 'FALL_DOWN') {
-                this.animTimer += dt;
-                let progress = Math.min(this.animTimer / GAME_CONFIG.fallAnimTime, 1);
-                this.currentFrame = Math.min(5, Math.floor(progress * 6));
-                
-                if (progress >= 1) {
-                    this.state = 'FALLEN';
-                    this.animTimer = 0; 
-                }
-            } 
-            else if (this.state === 'FALLEN') {
-                this.animTimer += dt;
-                if (this.animTimer >= GAME_CONFIG.fallenTime) {
-                    this.state = 'GETUP';
-                    this.animTimer = 0;
-                    this.currentFrame = 0;
-                }
-            } 
-            else if (this.state === 'GETUP') {
-                this.animTimer += dt;
-                let progress = Math.min(this.animTimer / GAME_CONFIG.getUpTime, 1);
-                this.currentFrame = Math.min(5, Math.floor(progress * 6));
-
-                if (progress >= 1) {
-                    this.state = 'IDLE';
-                    this.animTimer = 0;
-                    this.currentFrame = 0;
-                }
-            }
-        }
-
+    class ComboVFX {
+        constructor(x, y) { this.x = x + (Math.random() - 0.5) * 80; this.y = y + (Math.random() - 0.5) * 80; this.scale = 1 + Math.random() * 2; this.currentFrame = 0; this.frameTimer = 0; this.isFinished = false; }
+        update(dt) { this.frameTimer += dt; if (this.frameTimer >= 33) { this.currentFrame++; this.frameTimer = 0; if (this.currentFrame >= 18) this.isFinished = true; } }
         draw(ctx) {
-            ctx.save();
-            ctx.translate(this.baseX, this.baseY);
-
-            // 动态投影绘制
-            // 将投影相关的参数统一放大 20%
-            let shadowRadiusX = width * 0.042; // 原为 0.035
-            let shadowRadiusY = width * 0.01;  // 原为 0.0084
-            let shadowAlpha = 0.4;
-            let shadowOffsetY = -width * 0.018; // 原为 0.015
-
-            if (this.state === 'JUMP_SUCC' || this.state === 'JUMP_FAIL') {
-                let jumpFactor = Math.abs(this.offsetY) / GAME_CONFIG.jumpHeight; 
-                shadowRadiusX *= (1 - jumpFactor * 0.5); 
-                shadowRadiusY *= (1 - jumpFactor * 0.5);
-                shadowAlpha *= (1 - jumpFactor * 0.6);   
-            } else if (this.state === 'FALL_DOWN' || this.state === 'FALLEN' || this.state === 'GETUP') {
-                let fallFactor = 0;
-                if (this.state === 'FALL_DOWN') {
-                    fallFactor = this.currentFrame / 5; 
-                } else if (this.state === 'FALLEN') {
-                    fallFactor = 1;                     
-                } else if (this.state === 'GETUP') {
-                    fallFactor = 1 - (this.currentFrame / 5); 
-                }
-                
-                shadowRadiusX *= (1 + fallFactor * 0.28); 
-                shadowRadiusY *= (1 + fallFactor * 0.07); 
-                shadowAlpha = 0.4 + fallFactor * 0.15;   
-            }
-
-            ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
-            ctx.beginPath();
-            ctx.ellipse(0, shadowOffsetY, shadowRadiusX, shadowRadiusY, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // 角色身体绘制
-            ctx.translate(0, this.offsetY);
-
-            let currentSprite = idleSprite;
-            let totalFrames = 3;
-
-            if (this.state === 'JUMP_SUCC' || this.state === 'JUMP_FAIL') {
-                let progress = this.animTimer / GAME_CONFIG.jumpDuration;
-                if (progress <= 0.5) {
-                    currentSprite = jumpUpSprite;
-                    totalFrames = 6;
-                } else {
-                    if (this.state === 'JUMP_SUCC') {
-                        currentSprite = jumpDownSuccSprite;
-                        totalFrames = 6;
-                    } else {
-                        currentSprite = jumpDownFailSprite;
-                        totalFrames = 5;
-                    }
-                }
-            } else if (this.state === 'FALL_DOWN') {
-                currentSprite = fallSprite;
-                totalFrames = 6;
-            } else if (this.state === 'FALLEN') {
-                if (this.fallType === 'FROM_JUMP') {
-                    currentSprite = jumpDownFailSprite;
-                    totalFrames = 5;
-                    this.currentFrame = 4;
-                } else {
-                    currentSprite = fallSprite;
-                    totalFrames = 6;
-                    this.currentFrame = 5;
-                }
-            } else if (this.state === 'GETUP') {
-                currentSprite = getupSprite;
-                totalFrames = 6;
-            }
-
-            if (currentSprite.complete && currentSprite.naturalWidth > 0) {
-                const frameW = currentSprite.width / totalFrames; 
-                const frameH = currentSprite.height;
-                // 将角色本身的绘制宽度放大 20%
-                const drawW = width * 0.192; // 原为 0.16
-                const drawH = drawW * (frameH / frameW); 
-
-                // 玩家独有的红色指示箭头 (跟随角色头部位置动态调整)
-                if (this.type === 'PLAYER') {
-                    ctx.fillStyle = '#e74c3c';
-                    ctx.beginPath();
-                    ctx.moveTo(-6, -drawH - 14);
-                    ctx.lineTo(6, -drawH - 14);
-                    ctx.lineTo(0, -drawH - 5);
-                    ctx.fill();
-                }
-
-                ctx.drawImage(
-                    currentSprite,
-                    this.currentFrame * frameW, 0, frameW, frameH, 
-                    -drawW / 2, -drawH, drawW, drawH               
-                );
-            }
-
-            ctx.restore();
+            if (this.isFinished || !vfxSprite.complete || vfxSprite.naturalWidth === 0) return;
+            const frameW = vfxSprite.width / 6; const frameH = vfxSprite.height / 3; const drawW = width * 0.2 * this.scale; const drawH = drawW * (frameH / frameW);
+            ctx.save(); ctx.translate(this.x, this.y); ctx.globalCompositeOperation = 'screen'; ctx.drawImage(vfxSprite, (this.currentFrame % 6) * frameW, Math.floor(this.currentFrame / 6) * frameH, frameW, frameH, -drawW / 2, -drawH / 2, drawW, drawH); ctx.restore();
         }
     }
 
     function drawRope(team, isFront) {
-        let leftX = -width * 0.1;
-        let rightX = width * 1.1;
-        let ropeBaseY = team.groundY - height * 0.06; 
-        
-        let swingRadiusY = height * 0.08; 
-        // 统一使用全局角度
-        let ropeCenterYOffset = -Math.cos(gameState.ropeAngle) * swingRadiusY;
-        let controlY = ropeBaseY + ropeCenterYOffset * 1.8; 
-
-        let zDepth = Math.sin(gameState.ropeAngle); 
-        if (isFront && zDepth < 0) return; 
-        if (!isFront && zDepth >= 0) return; 
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(leftX, ropeBaseY);
-        ctx.quadraticCurveTo(width / 2, controlY, rightX, ropeBaseY);
-        
-        let visualDepth = (zDepth + 1) / 2; 
-        let ropeWidth = 2 + visualDepth * 3; 
-        
-        ctx.lineWidth = ropeWidth + 4;
-        ctx.strokeStyle = '#000000';
-        ctx.stroke();
-
-        ctx.lineWidth = ropeWidth;
-        ctx.strokeStyle = '#f1c40f';
-        ctx.stroke();
-        
-        ctx.restore();
+        let ropeBaseY = team.groundY - height * 0.06; let dynamicSwingY = height * 0.08; 
+        if (ROPE_PHYSICS.enableTensionDeform && !isRecordMode && gameState.status === 'PLAYING') {
+            let speedPhase = gameState.ropeProgress * Math.PI * 2;
+            let speedRatio = 1 - ROPE_PHYSICS.rhythmIntensity * Math.cos(speedPhase + ROPE_PHYSICS.whipOffset);
+            dynamicSwingY = dynamicSwingY * (1 - (speedRatio - 1) * 0.15);
+        }
+        let ropeCenterYOffset = -Math.cos(gameState.ropeAngle) * dynamicSwingY; let controlY = ropeBaseY + ropeCenterYOffset * 1.8; 
+        let zDepth = Math.sin(gameState.ropeAngle); if (isFront && zDepth < 0) return; if (!isFront && zDepth >= 0) return; 
+        ctx.save(); ctx.beginPath(); ctx.moveTo(-width * 0.1, ropeBaseY); ctx.quadraticCurveTo(width / 2, controlY, width * 1.1, ropeBaseY);
+        let ropeWidth = 2 + ((zDepth + 1) / 2) * 3; ctx.lineWidth = ropeWidth + 4; ctx.strokeStyle = '#000000'; ctx.stroke(); ctx.lineWidth = ropeWidth; ctx.strokeStyle = '#f1c40f'; ctx.stroke(); ctx.restore();
     }
 
     function spawnVFX() {
         const containerRect = document.getElementById('mobile-container').getBoundingClientRect();
-        const scoreRect = scoreEl.getBoundingClientRect();
-        const vfxX = (scoreRect.left - containerRect.left) + scoreRect.width / 2;
-        const vfxY = (scoreRect.top - containerRect.top) + scoreRect.height / 2;
+        const targetEl = document.getElementById('hit-target');
+        const targetRect = targetEl.getBoundingClientRect();
+        const vfxX = (targetRect.left - containerRect.left) + targetRect.width / 2;
+        const vfxY = (targetRect.top - containerRect.top) + targetRect.height / 2;
         activeVFX.push(new ComboVFX(vfxX, vfxY));
     }
 
-    // 核心判定转移到每只独立的队伍
-    function checkRopePass(team) {
-        team.chars.forEach(c => {
-            if (c.state === 'IDLE') {
-                c.fallDirectly();
-                if (c.type === 'PLAYER') gameState.score = 0; 
-            } else if (c.state === 'JUMP_SUCC') {
-                if (c.type === 'PLAYER') {
-                    gameState.score++;
-                    spawnVFX(); // 触发特效
-                }
-            }
-        });
+    function showJudgmentFeedback(text, color) {
+        judgmentText.innerText = text; judgmentText.style.color = color;
+        judgmentText.classList.remove('show'); void judgmentText.offsetWidth; judgmentText.classList.add('show');
     }
 
-    function updateUI() {
-        scoreEl.innerText = gameState.score;
-        const totalAngle = Math.PI * 2;
-        
-        const percentMin = (GAME_CONFIG.perfectMin / totalAngle) * 100;
-        const percentMax = (GAME_CONFIG.perfectMax / totalAngle) * 100;
-        // 统一使用全局角度
-        const currentPercent = (gameState.ropeAngle / totalAngle) * 100;
+    // ==========================================
+    // 音乐加载与启动流程 (321 倒计时)
+    // ==========================================
+    const checkAudioReady = () => {
+        if (bgmAudio.readyState >= 3) {
+            const btn = document.getElementById('start-btn');
+            btn.innerHTML = "▶ 开始挑战 (已载入专属谱面)";
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+        }
+    };
+    bgmAudio.addEventListener('canplay', checkAudioReady);
+    bgmAudio.addEventListener('canplaythrough', checkAudioReady);
+    setTimeout(checkAudioReady, 1000); 
 
-        timingZoneEl.style.left = `${percentMin}%`;
-        timingZoneEl.style.width = `${percentMax - percentMin}%`;
-        timingCursorEl.style.left = `${currentPercent}%`;
-        
-        if (gameState.ropeAngle >= GAME_CONFIG.perfectMin && gameState.ropeAngle <= GAME_CONFIG.perfectMax) {
-            timingZoneEl.classList.add('active');
-            timingCursorEl.classList.add('active');
+    function startCountdownAndPlay(recordMode) {
+        isRecordMode = recordMode;
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('leaderboard-screen').style.display = 'none';
+
+        if (!isRecordMode) {
+            // 普通模式：展示 321 倒计时
+            const overlay = document.getElementById('countdown-overlay');
+            const cdText = document.getElementById('countdown-text');
+            overlay.style.display = 'flex';
+            let count = 3; cdText.innerText = count;
+            
+            cdText.style.animation = 'none'; void cdText.offsetWidth; cdText.style.animation = 'popScale 1s ease-out forwards';
+            
+            let iv = setInterval(() => {
+                count--;
+                if(count > 0) {
+                    cdText.innerText = count;
+                    cdText.style.animation = 'none'; void cdText.offsetWidth; cdText.style.animation = 'popScale 1s ease-out forwards';
+                } else {
+                    clearInterval(iv);
+                    overlay.style.display = 'none';
+                    startRealGame();
+                }
+            }, 1000);
         } else {
-            timingZoneEl.classList.remove('active');
-            timingCursorEl.classList.remove('active');
+            // 打谱模式：直接开始
+            startRealGame();
         }
     }
 
+    function startRealGame() {
+        if (isRecordMode) {
+            recordedMap = [];
+            document.getElementById('record-ui').style.display = 'flex';
+            document.getElementById('rhythm-track').style.opacity = '0'; 
+            document.getElementById('combo-display').style.opacity = '0'; 
+            document.getElementById('progress-container').style.display = 'none';
+            document.getElementById('progress-text').style.display = 'none';
+        } else {
+            realBeats.forEach(beat => { beat.judged = false; beat.success = undefined; if (beat.el) { beat.el.remove(); beat.el = null; } });
+            document.querySelectorAll('.note').forEach(n => n.remove());
+            
+            gameState.targetScore = 0; gameState.displayScore = 0; scoreEl.innerText = "0";
+            
+            document.getElementById('rhythm-track').style.opacity = '1'; 
+            document.getElementById('combo-display').style.opacity = '1';
+            document.getElementById('progress-container').style.display = 'block';
+            document.getElementById('progress-text').style.display = 'block';
+            document.getElementById('record-ui').style.display = 'none';
+            document.getElementById('combo-display').classList.remove('shake-red');
+        }
+
+        bgmAudio.currentTime = 0;
+        bgmAudio.play();
+        gameState.status = 'PLAYING';
+    }
+
+    // ==========================================
+    // 核心交互输入
+    // ==========================================
     function handleInput() {
-        // 输入永远只控制拥有玩家的那支队伍
-        const playerTeam = teams[0];
-        const player = playerTeam.chars.find(c => c.type === 'PLAYER');
+        if (gameState.status !== 'PLAYING') return;
         
-        if (!player || player.state !== 'IDLE' || player.jumpedThisLoop) return;
+        const playerTeam = teams[0]; const player = playerTeam.chars.find(c => c.type === 'PLAYER');
+        if (!player || player.state !== 'IDLE') return;
 
-        // 统一判断全局角度
-        const isSuccess = gameState.ropeAngle >= GAME_CONFIG.perfectMin && gameState.ropeAngle <= GAME_CONFIG.perfectMax;
-        player.jump(isSuccess);
+        const currentAudioTime = bgmAudio.currentTime * 1000;
+        const comboDisplay = document.getElementById('combo-display');
 
-        if (!isSuccess) {
-            gameState.score = 0; 
+        const hitTarget = document.getElementById('hit-target');
+        hitTarget.classList.add('pulse'); setTimeout(() => hitTarget.classList.remove('pulse'), 100);
+
+        if (isRecordMode) {
+            recordedMap.push({ time: Math.floor(currentAudioTime), judged: false });
+            document.getElementById('rec-count').innerText = recordedMap.length;
+            showJudgmentFeedback("RECORDED!", "#3498db"); spawnVFX(); player.jump(true); 
+            teams.forEach(team => team.chars.forEach(c => { if (c.type === 'AI' && c.state === 'IDLE') c.jump(true); }));
+            return;
+        }
+
+        let nearestBeat = null; let minDiff = Infinity;
+        for (let i = 0; i < realBeats.length; i++) {
+            if (realBeats[i].judged) continue; 
+            let diff = Math.abs(currentAudioTime - realBeats[i].time);
+            if (diff < minDiff) { minDiff = diff; nearestBeat = realBeats[i]; }
+        }
+
+        if (nearestBeat && minDiff <= 200) {
+            nearestBeat.judged = true; nearestBeat.success = true;
+            if (minDiff <= 60) { showJudgmentFeedback("PERFECT!", "#2ecc71"); gameState.targetScore += 200; spawnVFX(); spawnVFX(); } 
+            else { showJudgmentFeedback("GREAT", "#f1c40f"); gameState.targetScore += 100; spawnVFX(); }
+            
+            comboDisplay.classList.remove('shake-red'); comboDisplay.classList.add('pop');
+            setTimeout(() => comboDisplay.classList.remove('pop'), 150);
+            
+            if (nearestBeat.el) { nearestBeat.el.classList.add('hit'); let elToRemove = nearestBeat.el; setTimeout(() => { if (elToRemove && elToRemove.parentNode) elToRemove.remove(); }, 300); nearestBeat.el = null; }
+            player.jump(true);
+        } else {
+            showJudgmentFeedback("MISS", "#e74c3c"); 
+            comboDisplay.classList.remove('pop'); comboDisplay.classList.remove('shake-red'); void comboDisplay.offsetWidth; comboDisplay.classList.add('shake-red');
+            player.jump(false); 
         }
     }
 
     document.getElementById('mobile-container').addEventListener('mousedown', handleInput);
-    document.getElementById('mobile-container').addEventListener('touchstart', (e) => {
-        e.preventDefault(); 
-        handleInput();
-    }, {passive: false});
+    document.getElementById('mobile-container').addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(); }, {passive: false});
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); handleInput(); } });
 
-    window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' || e.key === ' ') {
-            e.preventDefault(); 
-            handleInput();
-        }
-    });
+    document.getElementById('start-btn').addEventListener('click', (e) => { e.stopPropagation(); startCountdownAndPlay(false); });
+    document.getElementById('start-btn').addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); startCountdownAndPlay(false); }, {passive: false});
+    document.getElementById('record-btn').addEventListener('click', (e) => { e.stopPropagation(); startCountdownAndPlay(true); });
+    document.getElementById('record-btn').addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); startCountdownAndPlay(true); }, {passive: false});
+    document.getElementById('restart-btn').addEventListener('click', (e) => { e.stopPropagation(); startCountdownAndPlay(false); });
+    document.getElementById('restart-btn').addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); startCountdownAndPlay(false); }, {passive: false});
 
-    function update(dt) {
-        // 更新队伍角色状态
-        teams.forEach(team => {
-            team.chars.forEach(c => c.update(dt));
-        });
-        
-        const prevAngle = gameState.ropeAngle;
-        gameState.ropeAngle += gameState.ropeSpeed * dt;
-
-        // 统一判断绳子是否扫过检查点
-        if (prevAngle <= GAME_CONFIG.missThreshold && gameState.ropeAngle > GAME_CONFIG.missThreshold) {
-            teams.forEach(team => checkRopePass(team));
-        }
-
-        // 一圈结束，触发重置与随机变速
-        if (gameState.ropeAngle >= Math.PI * 2) {
-            gameState.ropeAngle %= (Math.PI * 2);
+    // ==========================================
+    // 时钟与物理引擎循环
+    // ==========================================
+    let lastTime = 0;
+    
+    function updateRhythmTrack(currentAudioTime) {
+        const track = document.getElementById('rhythm-track'); const approachTime = 1500; 
+        realBeats.forEach(beat => {
+            let timeDiff = beat.time - currentAudioTime;
+            if (timeDiff <= approachTime && timeDiff > -500) {
+                if (!beat.el && !beat.judged) { beat.el = document.createElement('div'); beat.el.className = 'note'; track.appendChild(beat.el); }
+            } else { if (beat.el && !beat.el.classList.contains('hit')) { beat.el.remove(); beat.el = null; } }
             
-            teams.forEach(team => {
-                team.chars.forEach(c => {
-                    c.jumpedThisLoop = false;
-                    // 【AI 随机失误核心】：每回合有 10% 的概率让某个AI忘记跳跃
-                    if (c.type === 'AI') {
-                        c.willMiss = Math.random() < 0.10;
-                    }
-                });
-            });
-            
-            const speedMultiplier = 0.6 + Math.random() * 1.2;
-            gameState.ropeSpeed = 0.0035 * speedMultiplier;
-        }
-        
-        // 更新特效
-        activeVFX.forEach(vfx => vfx.update(dt));
-        activeVFX = activeVFX.filter(vfx => !vfx.isFinished);
-    }
-
-    function draw() {
-        ctx.clearRect(0, 0, width, height);
-        
-        // 按队伍的Y坐标排序，确保底下的队伍渲染在上面，产生正确的遮挡关系
-        teams.sort((a, b) => a.groundY - b.groundY).forEach(team => {
-            drawRope(team, false); 
-            team.chars.sort((a, b) => a.baseY - b.baseY).forEach(c => c.draw(ctx));
-            drawRope(team, true);  
+            if (beat.el && !beat.el.classList.contains('hit')) {
+                let posPercent = 25 + (timeDiff / approachTime) * 75; beat.el.style.left = posPercent + '%';
+                if (Math.abs(timeDiff) <= 150) beat.el.classList.add('highlight'); else beat.el.classList.remove('highlight');
+            }
         });
-        
-        activeVFX.forEach(vfx => vfx.draw(ctx));
-        updateUI();
     }
 
     function gameLoop(timestamp) {
-        if (!gameState.lastTime) gameState.lastTime = timestamp;
-        const dt = timestamp - gameState.lastTime;
-        gameState.lastTime = timestamp;
-
-        if (dt < 100) {
-            update(dt);
-            draw();
-        }
         requestAnimationFrame(gameLoop);
+        const dt = timestamp - lastTime; lastTime = timestamp;
+        
+        // 未在游戏中时，保持场景渲染即可
+        if (gameState.status !== 'PLAYING') {
+            teams.forEach(team => team.chars.forEach(c => c.update(dt)));
+            ctx.clearRect(0, 0, width, height);
+            teams.sort((a, b) => a.groundY - b.groundY).forEach(team => {
+                drawRope(team, false); team.chars.sort((a, b) => a.baseY - b.baseY).forEach(c => c.draw(ctx)); drawRope(team, true);  
+            });
+            return;
+        }
+
+        const currentAudioTime = bgmAudio.currentTime * 1000;
+
+        if (isRecordMode) {
+            gameState.ropeAngle += 0.003 * dt; if (gameState.ropeAngle >= Math.PI * 2) gameState.ropeAngle %= (Math.PI * 2);
+        } else {
+            // 【60s 倒计时器逻辑】
+            let timeLeft = Math.max(0, 60 - (currentAudioTime / 1000));
+            let sStr = Math.ceil(timeLeft).toString().padStart(2, '0');
+            document.getElementById('progress-text').innerText = `00:${sStr}`;
+            document.getElementById('progress-bar').style.width = `${(timeLeft / 60) * 100}%`;
+
+            if (timeLeft <= 0) {
+                gameState.status = 'GAME_OVER'; bgmAudio.pause();
+                document.getElementById('leaderboard-screen').style.display = 'flex';
+                document.getElementById('final-score-val').innerText = Math.round(gameState.targetScore);
+                document.getElementById('your-lb-score').innerText = Math.round(gameState.targetScore);
+                return;
+            }
+
+            // 【前奏物理重构】: 计算何时第一个真实的节奏点入场
+            let firstBeatTime = realBeats[0] ? realBeats[0].time : 0;
+            let startSwingingTime = firstBeatTime - 1500; 
+
+            if (currentAudioTime < startSwingingTime) {
+                // 待机阶段：在最低点轻柔摇晃
+                gameState.ropeAngle = Math.PI + Math.sin(currentAudioTime * 0.003) * 0.15;
+                gameState.ropeProgress = 0;
+                teams.forEach(team => team.chars.forEach(c => c.jumpedThisLoop = false)); // 防止 AI 乱跳
+            } else {
+                // 正式阶段：物理引擎计算，完美衔接
+                let prevBeatTime = startSwingingTime; let nextBeatTime = firstBeatTime;
+                for (let i = 0; i < realBeats.length; i++) {
+                    if (currentAudioTime >= realBeats[i].time) {
+                        prevBeatTime = realBeats[i].time;
+                        nextBeatTime = (i + 1 < realBeats.length) ? realBeats[i+1].time : prevBeatTime + 2000;
+                    }
+                }
+
+                // 漏接 Miss 判定
+                realBeats.forEach(beat => {
+                    if (!beat.judged && currentAudioTime - beat.time > 150) {
+                        beat.judged = true; beat.success = false; showJudgmentFeedback("MISS", "#e74c3c");
+                        const comboDisplay = document.getElementById('combo-display');
+                        comboDisplay.classList.remove('pop'); comboDisplay.classList.remove('shake-red'); void comboDisplay.offsetWidth; comboDisplay.classList.add('shake-red');
+                        const player = teams[0].chars.find(c => c.type === 'PLAYER'); if (player && player.state === 'IDLE') player.fallDirectly();
+                    }
+                });
+
+                updateRhythmTrack(currentAudioTime);
+
+                gameState.ropeProgress = Math.max(0, Math.min(1, (currentAudioTime - prevBeatTime) / (nextBeatTime - prevBeatTime)));
+                let basePhase = Math.PI + (gameState.ropeProgress * Math.PI * 2);
+                gameState.ropeAngle = basePhase - ROPE_PHYSICS.rhythmIntensity * Math.sin(basePhase);
+
+                if (gameState.ropeProgress > 0.8 && gameState.ropeProgress < 0.9) {
+                    teams.forEach(team => { team.chars.forEach(c => {
+                        if (c.type === 'AI' && c.state === 'IDLE' && !c.jumpedThisLoop) { c.jumpedThisLoop = true; if (Math.random() > 0.1) c.jump(true); else c.fallDirectly(); }
+                    }); });
+                }
+                if (gameState.ropeProgress < 0.1) { teams.forEach(team => team.chars.forEach(c => c.jumpedThisLoop = false)); }
+            }
+
+            // 【计分板：平滑滚动数字插值动效】
+            if (Math.abs(gameState.targetScore - gameState.displayScore) > 0.5) {
+                gameState.displayScore += (gameState.targetScore - gameState.displayScore) * 0.15;
+                scoreEl.innerText = Math.round(gameState.displayScore);
+            } else if (gameState.displayScore !== gameState.targetScore) {
+                gameState.displayScore = gameState.targetScore;
+                scoreEl.innerText = gameState.targetScore;
+            }
+        }
+
+        teams.forEach(team => team.chars.forEach(c => c.update(dt)));
+        activeVFX.forEach(vfx => vfx.update(dt)); activeVFX = activeVFX.filter(vfx => !vfx.isFinished);
+        ctx.clearRect(0, 0, width, height);
+        teams.sort((a, b) => a.groundY - b.groundY).forEach(team => { drawRope(team, false); team.chars.sort((a, b) => a.baseY - b.baseY).forEach(c => c.draw(ctx)); drawRope(team, true); });
+        activeVFX.forEach(vfx => vfx.draw(ctx));
     }
 
-    resize();
-    requestAnimationFrame(gameLoop);
+    // 录制相关函数挂载
+    document.getElementById('stop-rec-btn').addEventListener('click', (e) => { e.stopPropagation(); bgmAudio.pause(); gameState.status = 'GAME_OVER'; let outputCode = "const BEATMAP = [\n"; recordedMap.forEach((beat, index) => { outputCode += `    { time: ${beat.time}, judged: false },`; if ((index + 1) % 4 === 0) outputCode += "\n"; }); if (recordedMap.length % 4 !== 0) outputCode += "\n"; outputCode += "];"; document.getElementById('export-textarea').value = outputCode; document.getElementById('export-screen').style.display = 'flex'; });
+    document.getElementById('copy-btn').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('export-textarea').select(); document.execCommand('copy'); document.getElementById('copy-btn').innerText = "已复制！"; document.getElementById('copy-btn').style.background = "#2ecc71"; });
 
+    resize(); requestAnimationFrame(gameLoop);
 </script>
 </body>
 </html>
